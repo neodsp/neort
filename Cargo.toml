@@ -1,10 +1,10 @@
 [package]
-name = "neostream"
-version = "0.0.2"
+name = "neort"
+version = "0.0.0"
 edition = "2021"
 authors = ["Stephan Eckes <stephan@neodsp.com>"]
-description = "neostream is a framework for real-time audio applications"
-repository = "https://github.com/neodsp/neostream"
+description = "neort is a framework for real-time audio applications"
+repository = "https://github.com/neodsp/neort"
 readme = "README.md"
 license = "MIT OR Apache-2.0"
 keywords = ["neodsp", "audio", "dsp", "real-time"]

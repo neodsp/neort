@@ -11,3 +11,7 @@ keywords = ["neodsp", "audio", "dsp", "real-time"]
 categories = ["multimedia::audio"]
 
 [dependencies]
+num = "0.4"
+rtsan = { git = "https://github.com/realtime-sanitizer/rtsan-standalone-rs", branch = "dev", features = [
+    "sanitize",
+] }

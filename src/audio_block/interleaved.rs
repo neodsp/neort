@@ -1,0 +1,159 @@
+use num::Float;
+
+use super::{AudioBlock, AudioBlockMut};
+
+#[derive(Debug)]
+pub struct InterleavedBlock<Sample: Float + 'static> {
+    data: Vec<Sample>,
+    num_channels: u16,
+    num_frames: u32,
+}
+
+impl<Sample: Float + 'static> InterleavedBlock<Sample> {
+    pub fn new(num_channels: u16, num_frames: u32) -> Self {
+        Self {
+            data: vec![Sample::zero(); num_channels as usize * num_frames as usize],
+            num_channels,
+            num_frames,
+        }
+    }
+
+    pub fn resize(&mut self, num_channels: u16, num_frames: u32) {
+        self.data
+            .resize(num_channels as usize * num_frames as usize, Sample::zero());
+    }
+}
+
+impl<Sample: Float + 'static> AudioBlock<Sample> for InterleavedBlock<Sample> {
+    type ChannelIter<'s> = std::iter::StepBy<std::iter::Skip<std::slice::Iter<'s, Sample>>>;
+    type FrameIter<'s> = std::iter::Take<std::iter::Skip<std::slice::Iter<'s, Sample>>>;
+
+    #[rtsan::nonblocking]
+    #[inline(always)]
+    fn sample(&self, channel: u16, frame: u32) -> Sample {
+        self.data[channel as usize + self.num_channels as usize * frame as usize]
+    }
+
+    #[rtsan::nonblocking]
+    #[inline(always)]
+    fn channel<'s>(&'s self, channel: u16) -> Self::ChannelIter<'s> {
+        self.data
+            .iter()
+            .skip(channel as usize)
+            .step_by(self.num_channels as usize)
+    }
+
+    #[rtsan::nonblocking]
+    #[inline(always)]
+    fn frame<'s>(&'s self, frame: u32) -> Self::FrameIter<'s> {
+        self.data
+            .iter()
+            .skip(self.num_channels as usize * frame as usize)
+            .take(self.num_channels as usize)
+    }
+
+    #[rtsan::nonblocking]
+    #[inline(always)]
+    fn raw_buffer(&self) -> &[Sample] {
+        &self.data
+    }
+}
+
+impl<Sample: Float + 'static> AudioBlockMut<Sample> for InterleavedBlock<Sample> {
+    type ChannelMutIter<'s> = std::iter::StepBy<std::iter::Skip<std::slice::IterMut<'s, Sample>>>;
+    type FrameMutIter<'s> = std::iter::Take<std::iter::Skip<std::slice::IterMut<'s, Sample>>>;
+
+    #[rtsan::nonblocking]
+    #[inline(always)]
+    fn sample_mut(&mut self, channel: u16, frame: u32) -> &mut Sample {
+        &mut self.data[channel as usize + self.num_channels as usize * frame as usize]
+    }
+
+    #[rtsan::nonblocking]
+    #[inline(always)]
+    fn channel_mut<'s>(&'s mut self, channel: u16) -> Self::ChannelMutIter<'s> {
+        self.data
+            .iter_mut()
+            .skip(channel as usize)
+            .step_by(self.num_channels as usize)
+    }
+
+    #[rtsan::nonblocking]
+    #[inline(always)]
+    fn frame_mut<'s>(&'s mut self, frame: u32) -> Self::FrameMutIter<'s> {
+        self.data
+            .iter_mut()
+            .skip(self.num_channels as usize * frame as usize)
+            .take(self.num_channels as usize)
+    }
+
+    #[rtsan::nonblocking]
+    #[inline(always)]
+    fn raw_buffer_mut(&mut self) -> &mut [Sample] {
+        &mut self.data
+    }
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn interleaved_block() {
+        let mut block = InterleavedBlock::<f32>::new(2, 8);
+
+        // Channels
+        block.channel_mut(0).for_each(|s| *s = 1.0);
+        block.channel_mut(1).for_each(|s| *s = 2.0);
+
+        assert_eq!(
+            block.raw_buffer(),
+            &[1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0]
+        );
+        assert_eq!(
+            block.channel(0).copied().collect::<Vec<_>>(),
+            vec![1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0]
+        );
+        assert_eq!(
+            block.channel(1).copied().collect::<Vec<_>>(),
+            vec![2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0, 2.0]
+        );
+
+        // Frames
+        block.frame_mut(2).for_each(|s| *s = 10.0);
+
+        assert_eq!(
+            block.raw_buffer(),
+            &[1.0, 2.0, 1.0, 2.0, 10.0, 10.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0, 1.0, 2.0]
+        );
+        assert_eq!(block.frame(1).copied().collect::<Vec<_>>(), vec![1.0, 2.0]);
+        assert_eq!(
+            block.frame(2).copied().collect::<Vec<_>>(),
+            vec![10.0, 10.0]
+        );
+
+        // Raw Raw Buffer
+        block.raw_buffer_mut()[10] = 20.0;
+
+        assert_eq!(
+            block.raw_buffer(),
+            &[1.0, 2.0, 1.0, 2.0, 10.0, 10.0, 1.0, 2.0, 1.0, 2.0, 20.0, 2.0, 1.0, 2.0, 1.0, 2.0]
+        );
+
+        // Sample
+        *block.sample_mut(1, 4) = 30.0;
+        assert_eq!(
+            block.raw_buffer(),
+            &[1.0, 2.0, 1.0, 2.0, 10.0, 10.0, 1.0, 2.0, 1.0, 30.0, 20.0, 2.0, 1.0, 2.0, 1.0, 2.0]
+        );
+        assert_eq!(block.sample(1, 4), 30.0);
+        assert_eq!(block.sample(1, 7), 2.0);
+    }
+
+    // #[rtsan::nonblocking]
+    // fn process<Block>(block: &mut Block)
+    // where
+    //     Block: AudioBlockMut<f32>,
+    // {
+    //     block.channel_mut(0).for_each(|v| *v = 1.0);
+    // }
+}

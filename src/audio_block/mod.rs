@@ -1,6 +1,7 @@
 use num::Float;
 
 mod interleaved;
+mod sequential;
 
 pub trait AudioBlock<Sample: Float + 'static> {
     type ChannelIter<'s>: Iterator<Item = &'s Sample>

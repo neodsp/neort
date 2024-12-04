@@ -10,6 +10,11 @@ pub trait AudioBlock<Sample: Float + 'static> {
     where
         Self: 's;
 
+    fn sample_rate(&self) -> f64;
+    fn num_channels(&self) -> u16;
+    fn num_frames(&self) -> u32;
+    fn length_in_seconds(&self) -> f64;
+
     fn sample(&self, channel: u16, frame: u32) -> Sample;
     fn channel<'s>(&'s self, channel: u16) -> Self::ChannelIter<'s>;
     fn frame<'s>(&'s self, frame: u32) -> Self::FrameIter<'s>;

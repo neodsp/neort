@@ -20,11 +20,11 @@ impl<'a, Sample: Float> BlockView<'a, Sample> {
     ) -> Self {
         let data = match layout {
             BufferLayout::Sequential => {
-                ArrayView2::from_shape((num_channels as usize, num_frames as usize), buffer)
+                ArrayView2::from_shape((num_channels as usize, num_frames), buffer)
                     .unwrap()
             }
             BufferLayout::Interleaved => {
-                ArrayView2::from_shape((num_channels as usize, num_frames as usize).f(), buffer)
+                ArrayView2::from_shape((num_channels as usize, num_frames).f(), buffer)
                     .unwrap()
             }
         };
@@ -35,7 +35,7 @@ impl<'a, Sample: Float> BlockView<'a, Sample> {
     pub fn from_array_view(view: ArrayView2<'a, Sample>, sample_rate: f64) -> Self {
         Self {
             data: view,
-            sample_rate: sample_rate,
+            sample_rate,
         }
     }
 
@@ -57,7 +57,7 @@ impl<'a, Sample: Float> BlockView<'a, Sample> {
     }
 }
 
-impl<'a, Sample: Float> BlockRead<Sample> for BlockView<'a, Sample> {
+impl<Sample: Float> BlockRead<Sample> for BlockView<'_, Sample> {
     #[rtsan::nonblocking]
     fn sample_rate(&self) -> f64 {
         self.sample_rate

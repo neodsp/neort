@@ -23,12 +23,10 @@ impl<'a, Sample: Float> BlockViewMut<'a, Sample> {
     ) -> Self {
         let data = match layout {
             BufferLayout::Sequential => {
-                ArrayViewMut2::from_shape((num_channels as usize, num_frames as usize), buffer)
-                    .unwrap()
+                ArrayViewMut2::from_shape((num_channels as usize, num_frames), buffer).unwrap()
             }
             BufferLayout::Interleaved => {
-                ArrayViewMut2::from_shape((num_channels as usize, num_frames as usize).f(), buffer)
-                    .unwrap()
+                ArrayViewMut2::from_shape((num_channels as usize, num_frames).f(), buffer).unwrap()
             }
         };
         Self { data, sample_rate }
@@ -38,7 +36,7 @@ impl<'a, Sample: Float> BlockViewMut<'a, Sample> {
     pub fn from_array_view(view: ArrayViewMut2<'a, Sample>, sample_rate: f64) -> Self {
         Self {
             data: view,
-            sample_rate: sample_rate,
+            sample_rate,
         }
     }
 
@@ -51,7 +49,7 @@ impl<'a, Sample: Float> BlockViewMut<'a, Sample> {
     }
 }
 
-impl<'a, Sample: Float> BlockRead<Sample> for BlockViewMut<'a, Sample> {
+impl<Sample: Float> BlockRead<Sample> for BlockViewMut<'_, Sample> {
     #[rtsan::nonblocking]
     fn sample_rate(&self) -> f64 {
         self.sample_rate
@@ -107,7 +105,7 @@ impl<'a, Sample: Float> BlockRead<Sample> for BlockViewMut<'a, Sample> {
     }
 }
 
-impl<'a, Sample: Float> BlockWrite<Sample> for BlockViewMut<'a, Sample> {
+impl<Sample: Float> BlockWrite<Sample> for BlockViewMut<'_, Sample> {
     #[rtsan::nonblocking]
     fn channel_mut(&mut self, index: u16) -> ArrayViewMut1<Sample> {
         self.data.row_mut(index as usize)

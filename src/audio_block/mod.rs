@@ -18,6 +18,9 @@ pub enum BufferLayout {
     Interleaved,
 }
 
+/// Trait that is necessary to read from an audio block.
+/// All functions inside of this trait are real-time safe
+/// and meant to be called inside of your process function.
 pub trait BlockRead<Sample: Float> {
     fn sample_rate(&self) -> f64;
     fn num_channels(&self) -> u16;
@@ -36,6 +39,9 @@ pub trait BlockRead<Sample: Float> {
     fn raw_buffer(&self) -> &[Sample];
 }
 
+/// Trait that is necessary to write to an audio block.
+/// All functions inside of this trait are real-time safe
+/// and meant to be called inside of your process function.
 pub trait BlockWrite<Sample: Float>: BlockRead<Sample> {
     fn channel_mut(&mut self, index: u16) -> ArrayViewMut1<Sample>;
     fn frame_mut(&mut self, index: u32) -> ArrayViewMut1<Sample>;

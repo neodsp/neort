@@ -11,6 +11,7 @@ pub struct BlockView<'a, F: Float> {
 
 impl<'a, F: Float> BlockView<'a, F> {
     #[rtsan::nonblocking]
+    #[inline(always)]
     pub fn from_buffer(
         buffer: &'a [F],
         sample_rate: f64,
@@ -30,19 +31,11 @@ impl<'a, F: Float> BlockView<'a, F> {
     }
 
     #[rtsan::nonblocking]
+    #[inline(always)]
     pub fn from_array_view(view: ArrayView2<'a, F>, sample_rate: f64) -> Self {
         Self {
             data: view,
             sample_rate,
-        }
-    }
-
-    #[rtsan::nonblocking]
-    pub fn layout(&self) -> BufferLayout {
-        if self.data.is_standard_layout() {
-            BufferLayout::Sequential
-        } else {
-            BufferLayout::Interleaved
         }
     }
 
@@ -57,21 +50,25 @@ impl<'a, F: Float> BlockView<'a, F> {
 
 impl<F: Float> BlockRead<F> for BlockView<'_, F> {
     #[rtsan::nonblocking]
+    #[inline(always)]
     fn sample_rate(&self) -> f64 {
         self.sample_rate
     }
 
     #[rtsan::nonblocking]
+    #[inline(always)]
     fn num_channels(&self) -> u16 {
         self.data.nrows() as u16
     }
 
     #[rtsan::nonblocking]
+    #[inline(always)]
     fn num_frames(&self) -> u32 {
         self.data.ncols() as u32
     }
 
     #[rtsan::nonblocking]
+    #[inline(always)]
     fn layout(&self) -> BufferLayout {
         if self.data.is_standard_layout() {
             BufferLayout::Sequential
@@ -81,31 +78,37 @@ impl<F: Float> BlockRead<F> for BlockView<'_, F> {
     }
 
     #[rtsan::nonblocking]
+    #[inline(always)]
     fn channel(&self, index: u16) -> ArrayView1<F> {
         self.data.row(index as usize)
     }
 
     #[rtsan::nonblocking]
+    #[inline(always)]
     fn frame(&self, index: u32) -> ArrayView1<F> {
         self.data.column(index as usize)
     }
 
     #[rtsan::nonblocking]
+    #[inline(always)]
     fn channels(&self) -> Lanes<F, Dim<[usize; 1]>> {
         self.data.rows()
     }
 
     #[rtsan::nonblocking]
+    #[inline(always)]
     fn frames(&self) -> Lanes<F, Dim<[usize; 1]>> {
         self.data.columns()
     }
 
     #[rtsan::nonblocking]
+    #[inline(always)]
     fn raw_buffer(&self) -> &[F] {
         self.data.as_slice_memory_order().unwrap()
     }
 
     #[rtsan::nonblocking]
+    #[inline(always)]
     fn view(&self) -> BlockView<F> {
         BlockView::from_array_view(self.data.view(), self.sample_rate)
     }

@@ -34,7 +34,7 @@ pub trait BlockRead<F: Float> {
 
     fn view(&self) -> BlockView<F>;
 
-    /// If the block is a view, this can return sequential or interleaved data.
+    /// This can return sequential or interleaved data.
     /// The layout can be checked with [`BlockView::layout`] or [`BlockViewMut::layout`].
     fn raw_buffer(&self) -> &[F];
 }
@@ -50,7 +50,7 @@ pub trait BlockWrite<F: Float>: BlockRead<F> {
 
     fn view_mut(&mut self) -> BlockViewMut<F>;
 
-    /// If the block is a view, this can return sequential or interleaved data.
+    /// This can return sequential or interleaved data.
     /// The layout can be checked with [`BlockView::layout`] or [`BlockViewMut::layout`].
     fn raw_buffer_mut(&mut self) -> &mut [F];
 }

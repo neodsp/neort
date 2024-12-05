@@ -21,11 +21,8 @@ pub struct Gain<F: Float> {
 
 impl<F: Float> Processor<F> for Gain<F> {
     type PrepareResult = ();
-
     type ProcessResult = ();
-
     type SetParameterResult = ();
-
     type Parameter = GainParameter;
 
     fn prepare(&mut self, settings: &AudioSettings) -> Self::PrepareResult {

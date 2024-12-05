@@ -11,11 +11,8 @@ pub struct AudioSettings {
 
 pub trait Processor<F: Float> {
     type PrepareResult;
-
     type ProcessResult;
-
     type SetParameterResult;
-
     type Parameter;
 
     /// This always needs to be called before the processing start.

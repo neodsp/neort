@@ -16,3 +16,4 @@ rtsan = { git = "https://github.com/realtime-sanitizer/rtsan-standalone-rs", bra
     "sanitize",
 ] }
 ndarray = "0.16"
+atomic_float = "1.1"

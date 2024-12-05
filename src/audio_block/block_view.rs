@@ -4,15 +4,15 @@ use num::Float;
 use super::{Block, BlockRead, BufferLayout};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct BlockView<'a, Sample: Float> {
-    data: ArrayView2<'a, Sample>,
+pub struct BlockView<'a, F: Float> {
+    data: ArrayView2<'a, F>,
     sample_rate: f64,
 }
 
-impl<'a, Sample: Float> BlockView<'a, Sample> {
+impl<'a, F: Float> BlockView<'a, F> {
     #[rtsan::nonblocking]
     pub fn from_buffer(
-        buffer: &'a [Sample],
+        buffer: &'a [F],
         sample_rate: f64,
         num_channels: u16,
         num_frames: usize,
@@ -20,19 +20,17 @@ impl<'a, Sample: Float> BlockView<'a, Sample> {
     ) -> Self {
         let data = match layout {
             BufferLayout::Sequential => {
-                ArrayView2::from_shape((num_channels as usize, num_frames), buffer)
-                    .unwrap()
+                ArrayView2::from_shape((num_channels as usize, num_frames), buffer).unwrap()
             }
             BufferLayout::Interleaved => {
-                ArrayView2::from_shape((num_channels as usize, num_frames).f(), buffer)
-                    .unwrap()
+                ArrayView2::from_shape((num_channels as usize, num_frames).f(), buffer).unwrap()
             }
         };
         Self { data, sample_rate }
     }
 
     #[rtsan::nonblocking]
-    pub fn from_array_view(view: ArrayView2<'a, Sample>, sample_rate: f64) -> Self {
+    pub fn from_array_view(view: ArrayView2<'a, F>, sample_rate: f64) -> Self {
         Self {
             data: view,
             sample_rate,
@@ -48,7 +46,7 @@ impl<'a, Sample: Float> BlockView<'a, Sample> {
         }
     }
 
-    pub fn to_owned(&self, force_sequential_layout: bool) -> Block<Sample> {
+    pub fn to_owned(&self, force_sequential_layout: bool) -> Block<F> {
         if force_sequential_layout {
             Block::from_array(self.data.as_standard_layout().to_owned(), self.sample_rate)
         } else {
@@ -57,7 +55,7 @@ impl<'a, Sample: Float> BlockView<'a, Sample> {
     }
 }
 
-impl<Sample: Float> BlockRead<Sample> for BlockView<'_, Sample> {
+impl<F: Float> BlockRead<F> for BlockView<'_, F> {
     #[rtsan::nonblocking]
     fn sample_rate(&self) -> f64 {
         self.sample_rate
@@ -83,32 +81,32 @@ impl<Sample: Float> BlockRead<Sample> for BlockView<'_, Sample> {
     }
 
     #[rtsan::nonblocking]
-    fn channel(&self, index: u16) -> ArrayView1<Sample> {
+    fn channel(&self, index: u16) -> ArrayView1<F> {
         self.data.row(index as usize)
     }
 
     #[rtsan::nonblocking]
-    fn frame(&self, index: u32) -> ArrayView1<Sample> {
+    fn frame(&self, index: u32) -> ArrayView1<F> {
         self.data.column(index as usize)
     }
 
     #[rtsan::nonblocking]
-    fn channels(&self) -> Lanes<Sample, Dim<[usize; 1]>> {
+    fn channels(&self) -> Lanes<F, Dim<[usize; 1]>> {
         self.data.rows()
     }
 
     #[rtsan::nonblocking]
-    fn frames(&self) -> Lanes<Sample, Dim<[usize; 1]>> {
+    fn frames(&self) -> Lanes<F, Dim<[usize; 1]>> {
         self.data.columns()
     }
 
     #[rtsan::nonblocking]
-    fn raw_buffer(&self) -> &[Sample] {
+    fn raw_buffer(&self) -> &[F] {
         self.data.as_slice_memory_order().unwrap()
     }
 
     #[rtsan::nonblocking]
-    fn view(&self) -> BlockView<Sample> {
+    fn view(&self) -> BlockView<F> {
         BlockView::from_array_view(self.data.view(), self.sample_rate)
     }
 }

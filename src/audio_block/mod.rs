@@ -27,6 +27,7 @@ pub trait BlockRead<F: Float> {
     fn num_frames(&self) -> u32;
     fn layout(&self) -> BufferLayout;
 
+    fn sample(&self, ch: u16, frame: u32) -> F;
     fn channel(&self, index: u16) -> ArrayView1<F>;
     fn frame(&self, index: u32) -> ArrayView1<F>;
     fn channels(&self) -> Lanes<F, Dim<[usize; 1]>>;
@@ -43,6 +44,7 @@ pub trait BlockRead<F: Float> {
 /// All functions inside of this trait are real-time safe
 /// and meant to be called inside of your process function.
 pub trait BlockWrite<F: Float>: BlockRead<F> {
+    fn sample_mut(&mut self, ch: u16, frame: u32) -> &mut F;
     fn channel_mut(&mut self, index: u16) -> ArrayViewMut1<F>;
     fn frame_mut(&mut self, index: u32) -> ArrayViewMut1<F>;
     fn channels_mut(&mut self) -> LanesMut<F, Dim<[usize; 1]>>;

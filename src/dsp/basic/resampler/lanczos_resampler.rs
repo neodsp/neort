@@ -1,123 +1,109 @@
 // copied from babycat
 
-use std::f32::consts::PI;
+use ndarray::ArrayView1;
+use num::Float;
 
-use num::Zero;
+use crate::audio_block::{Block, BlockRead, BlockWrite};
 
 const KERNEL_A: i32 = 5;
 
-fn lanczos_kernel(x: f32, a: f32) -> f32 {
-    if x.is_zero() {
-        return 1.0;
-    }
-    if -a <= x && x < a {
-        return (a * (PI * x).sin() * (PI * x / a).sin()) / (PI * PI * x * x);
-    }
-    0.0
+pub fn generate_output_block<F: Float>(
+    input: &impl BlockRead<F>,
+    output_sample_rate: f64,
+) -> Block<F> {
+    Block::new(
+        48000.0,
+        2,
+        calculate_output_frames(input, output_sample_rate),
+    )
 }
 
-#[allow(clippy::cast_precision_loss)]
-#[allow(clippy::cast_possible_truncation)]
-#[allow(clippy::cast_sign_loss)]
-fn compute_sample(
-    input_audio: &[f32],
-    frame_idx: f32,
-    channel_idx: usize,
-    num_channels: usize,
-) -> f32 {
-    let num_input_frames: usize = input_audio.len() / num_channels as usize;
-    let a: f32 = KERNEL_A as f32;
-    let x_floor = frame_idx as i64;
-    let i_start = x_floor - a as i64 + 1;
-    let i_end = x_floor + a as i64 + 1;
-    let mut the_sample: f32 = 0.0_f32;
+#[rtsan::nonblocking]
+pub fn calculate_output_frames<F: Float>(
+    input: &impl BlockRead<F>,
+    output_sample_rate: f64,
+) -> u32 {
+    (input.num_frames() as f64 * output_sample_rate / input.sample_rate()).ceil() as u32
+}
+
+#[rtsan::nonblocking]
+fn lanczos_kernel<F: Float>(x: F, a: F) -> F {
+    if x.is_zero() {
+        return F::one();
+    }
+    let pi = F::from(std::f64::consts::PI).unwrap();
+    if -a <= x && x < a {
+        return (a * (pi * x).sin() * (pi * x / a).sin()) / (pi * pi * x * x);
+    }
+    F::zero()
+}
+
+#[rtsan::nonblocking]
+pub fn compute_sample<F: Float>(input: ArrayView1<F>, frame_idx: F) -> F {
+    let num_input_frames = input.len();
+    let x_floor = frame_idx.to_i64().unwrap();
+    let i_start = x_floor - KERNEL_A as i64 + 1;
+    let i_end = x_floor + KERNEL_A as i64 + 1;
+    let mut output = F::zero();
     for i in i_start..i_end {
         if (i as usize) < num_input_frames {
-            the_sample += get(input_audio, i as usize, channel_idx, num_channels)
-                * lanczos_kernel(frame_idx - i as f32, a);
+            output = output
+                + input[i as usize]
+                    * lanczos_kernel(frame_idx - F::from(i).unwrap(), F::from(KERNEL_A).unwrap());
         }
     }
-    the_sample
+    output
 }
 
-#[allow(clippy::cast_precision_loss)]
-pub fn resample(
-    input_frame_rate_hz: u32,
-    output_frame_rate_hz: u32,
-    num_channels: u16,
-    input_audio: &[f32],
-) -> Result<Vec<f32>, ()> {
-    // validate_args(input_frame_rate_hz, output_frame_rate_hz, num_channels)?;
-    let output_num_frames = get_num_output_frames(
-        input_audio,
-        input_frame_rate_hz,
-        output_frame_rate_hz,
-        num_channels,
-    );
-    let output_audio: Vec<f32> = (0..output_num_frames)
-        .flat_map(|input_frame_idx| {
-            (0..num_channels as usize).map(move |channel_idx| {
-                let output_frame_idx = (input_frame_idx as f32 * input_frame_rate_hz as f32)
-                    / output_frame_rate_hz as f32;
-                compute_sample(
-                    input_audio,
-                    output_frame_idx,
-                    channel_idx,
-                    num_channels as usize,
-                )
-            })
-        })
-        .collect();
-
-    Ok(output_audio)
+#[rtsan::nonblocking]
+pub fn process<F: Float>(input: &impl BlockRead<F>, output: &mut impl BlockWrite<F>) {
+    let output_sample_rate = output.sample_rate();
+    let num_output_frames = calculate_output_frames(input, output_sample_rate);
+    assert_eq!(output.num_frames(), num_output_frames);
+    for (mut output_ch, input_ch) in output.channels_mut().into_iter().zip(input.channels()) {
+        for in_frame_id in 0..num_output_frames {
+            let frame_idx =
+                F::from(in_frame_id as f64 * input.sample_rate() / output_sample_rate).unwrap();
+            output_ch[in_frame_id as usize] = compute_sample(input_ch, frame_idx);
+        }
+    }
 }
 
-pub fn get<T: Copy>(v: &[T], frame: usize, channel_idx: usize, num_channels: usize) -> T {
-    v[frame * num_channels + channel_idx]
-}
+#[cfg(test)]
+mod tests {
+    use babycat::constants::RESAMPLE_MODE_BABYCAT_LANCZOS;
 
-// pub fn validate_args(
-//     input_frame_rate_hz: u32,
-//     output_frame_rate_hz: u32,
-//     num_channels: u16,
-// ) -> Result<(), Error> {
-//     if input_frame_rate_hz == 0 || output_frame_rate_hz == 0 {
-//         return Err(Error::WrongFrameRate(
-//             input_frame_rate_hz,
-//             output_frame_rate_hz,
-//         ));
-//     }
-//     if num_channels == 0 {
-//         return Err(Error::ResamplingError);
-//     }
-//     if (input_frame_rate_hz > output_frame_rate_hz)
-//         && (f64::from(input_frame_rate_hz) / f64::from(output_frame_rate_hz) > 256.0)
-//     {
-//         return Err(Error::WrongFrameRateRatio(
-//             input_frame_rate_hz,
-//             output_frame_rate_hz,
-//         ));
-//     }
-//     if f64::from(output_frame_rate_hz) / f64::from(input_frame_rate_hz) > 256.0 {
-//         return Err(Error::WrongFrameRateRatio(
-//             input_frame_rate_hz,
-//             output_frame_rate_hz,
-//         ));
-//     }
-//     Ok(())
-// }
+    use crate::audio_block::{Block, BlockView};
 
-#[allow(clippy::cast_possible_truncation)]
-#[allow(clippy::cast_precision_loss)]
-#[allow(clippy::cast_sign_loss)]
-pub fn get_num_output_frames(
-    input_audio: &[f32],
-    input_frame_rate_hz: u32,
-    output_frame_rate_hz: u32,
-    num_channels: u16,
-) -> usize {
-    ((input_audio.len() as f64 * f64::from(output_frame_rate_hz) / f64::from(input_frame_rate_hz))
-        .ceil()
-        / f64::from(num_channels))
-    .ceil() as usize
+    use super::*;
+
+    #[test]
+    fn lanczos_resampler() {
+        let mut input_block = Block::<f32>::new(44100.0, 2, 10);
+        let mut output_block = generate_output_block(&input_block, 48000.0);
+
+        *input_block.sample_mut(0, 0) = 1.0;
+        *input_block.sample_mut(1, 2) = 1.0;
+
+        process(&input_block, &mut output_block);
+
+        let mut data = vec![0.0; 20];
+        data[0] = 1.0;
+        data[5] = 1.0;
+        let a = babycat::Waveform::new(44100, 2, data);
+
+        let expected_output = a
+            .resample_by_mode(48000, RESAMPLE_MODE_BABYCAT_LANCZOS)
+            .unwrap();
+
+        let expected_block = BlockView::from_buffer(
+            expected_output.to_interleaved_samples(),
+            48000.0,
+            2,
+            11,
+            crate::audio_block::BufferLayout::Interleaved,
+        );
+
+        assert_eq!(output_block.view(), expected_block);
+    }
 }

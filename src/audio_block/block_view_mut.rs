@@ -7,15 +7,15 @@ use num::Float;
 use super::{block_view::BlockView, Block, BlockRead, BlockWrite, BufferLayout};
 
 #[derive(Debug, PartialEq)]
-pub struct BlockViewMut<'a, Sample: Float> {
-    data: ArrayViewMut2<'a, Sample>,
+pub struct BlockViewMut<'a, F: Float> {
+    data: ArrayViewMut2<'a, F>,
     sample_rate: f64,
 }
 
-impl<'a, Sample: Float> BlockViewMut<'a, Sample> {
+impl<'a, F: Float> BlockViewMut<'a, F> {
     #[rtsan::nonblocking]
     pub fn from_buffer(
-        buffer: &'a mut [Sample],
+        buffer: &'a mut [F],
         sample_rate: f64,
         num_channels: u16,
         num_frames: usize,
@@ -33,14 +33,14 @@ impl<'a, Sample: Float> BlockViewMut<'a, Sample> {
     }
 
     #[rtsan::nonblocking]
-    pub fn from_array_view(view: ArrayViewMut2<'a, Sample>, sample_rate: f64) -> Self {
+    pub fn from_array_view(view: ArrayViewMut2<'a, F>, sample_rate: f64) -> Self {
         Self {
             data: view,
             sample_rate,
         }
     }
 
-    pub fn to_owned(&self, force_sequential_layout: bool) -> Block<Sample> {
+    pub fn to_owned(&self, force_sequential_layout: bool) -> Block<F> {
         if force_sequential_layout {
             Block::from_array(self.data.as_standard_layout().to_owned(), self.sample_rate)
         } else {
@@ -49,7 +49,7 @@ impl<'a, Sample: Float> BlockViewMut<'a, Sample> {
     }
 }
 
-impl<Sample: Float> BlockRead<Sample> for BlockViewMut<'_, Sample> {
+impl<F: Float> BlockRead<F> for BlockViewMut<'_, F> {
     #[rtsan::nonblocking]
     #[inline(always)]
     fn sample_rate(&self) -> f64 {
@@ -80,75 +80,87 @@ impl<Sample: Float> BlockRead<Sample> for BlockViewMut<'_, Sample> {
 
     #[rtsan::nonblocking]
     #[inline(always)]
-    fn channel(&self, index: u16) -> ArrayView1<Sample> {
+    fn sample(&self, ch: u16, frame: u32) -> F {
+        self.data[[ch as usize, frame as usize]]
+    }
+
+    #[rtsan::nonblocking]
+    #[inline(always)]
+    fn channel(&self, index: u16) -> ArrayView1<F> {
         self.data.row(index as usize)
     }
 
     #[rtsan::nonblocking]
     #[inline(always)]
-    fn frame(&self, index: u32) -> ArrayView1<Sample> {
+    fn frame(&self, index: u32) -> ArrayView1<F> {
         self.data.column(index as usize)
     }
 
     #[rtsan::nonblocking]
     #[inline(always)]
-    fn channels(&self) -> Lanes<Sample, Dim<[usize; 1]>> {
+    fn channels(&self) -> Lanes<F, Dim<[usize; 1]>> {
         self.data.rows()
     }
 
     #[rtsan::nonblocking]
     #[inline(always)]
-    fn frames(&self) -> Lanes<Sample, Dim<[usize; 1]>> {
+    fn frames(&self) -> Lanes<F, Dim<[usize; 1]>> {
         self.data.columns()
     }
 
     #[rtsan::nonblocking]
     #[inline(always)]
-    fn raw_buffer(&self) -> &[Sample] {
+    fn raw_buffer(&self) -> &[F] {
         self.data.as_slice_memory_order().unwrap()
     }
 
     #[rtsan::nonblocking]
     #[inline(always)]
-    fn view(&self) -> BlockView<Sample> {
+    fn view(&self) -> BlockView<F> {
         BlockView::from_array_view(self.data.view(), self.sample_rate)
     }
 }
 
-impl<Sample: Float> BlockWrite<Sample> for BlockViewMut<'_, Sample> {
+impl<F: Float> BlockWrite<F> for BlockViewMut<'_, F> {
     #[rtsan::nonblocking]
     #[inline(always)]
-    fn channel_mut(&mut self, index: u16) -> ArrayViewMut1<Sample> {
+    fn sample_mut(&mut self, ch: u16, frame: u32) -> &mut F {
+        &mut self.data[[ch as usize, frame as usize]]
+    }
+
+    #[rtsan::nonblocking]
+    #[inline(always)]
+    fn channel_mut(&mut self, index: u16) -> ArrayViewMut1<F> {
         self.data.row_mut(index as usize)
     }
 
     #[rtsan::nonblocking]
     #[inline(always)]
-    fn frame_mut(&mut self, index: u32) -> ArrayViewMut1<Sample> {
+    fn frame_mut(&mut self, index: u32) -> ArrayViewMut1<F> {
         self.data.column_mut(index as usize)
     }
 
     #[rtsan::nonblocking]
     #[inline(always)]
-    fn channels_mut(&mut self) -> LanesMut<Sample, Dim<[usize; 1]>> {
+    fn channels_mut(&mut self) -> LanesMut<F, Dim<[usize; 1]>> {
         self.data.rows_mut()
     }
 
     #[rtsan::nonblocking]
     #[inline(always)]
-    fn frames_mut(&mut self) -> LanesMut<Sample, Dim<[usize; 1]>> {
+    fn frames_mut(&mut self) -> LanesMut<F, Dim<[usize; 1]>> {
         self.data.columns_mut()
     }
 
     #[rtsan::nonblocking]
     #[inline(always)]
-    fn raw_buffer_mut(&mut self) -> &mut [Sample] {
+    fn raw_buffer_mut(&mut self) -> &mut [F] {
         self.data.as_slice_memory_order_mut().unwrap()
     }
 
     #[rtsan::nonblocking]
     #[inline(always)]
-    fn view_mut(&mut self) -> BlockViewMut<Sample> {
+    fn view_mut(&mut self) -> BlockViewMut<F> {
         BlockViewMut::from_array_view(self.data.view_mut(), self.sample_rate)
     }
 }
@@ -159,6 +171,7 @@ mod tests {
 
     use super::*;
 
+    // TODO: Mut access tests missing
     #[test]
     fn block_view_mut_sequential() {
         let mut buffer = [0.0, 0.1, 0.2, 1.0, 1.1, 1.2];
@@ -180,6 +193,9 @@ mod tests {
         assert_eq!(block.num_frames(), 3);
         assert_eq!(block.layout(), BufferLayout::Sequential);
 
+        // sample
+        assert_eq!(block.sample(0, 1), 0.1);
+        assert_eq!(block.sample(1, 2), 1.2);
         // fn channel(&self, index: u16) -> ArrayView1<Sample>;
         assert_eq!(block.channel(0), aview1(&[0.0, 0.1, 0.2]));
         assert_eq!(block.channel(1), aview1(&[1.0, 1.1, 1.2]));
@@ -219,6 +235,10 @@ mod tests {
         let mut buffer = [0.0, 1.0, 0.1, 1.1, 0.2, 1.2];
         let block =
             BlockViewMut::from_buffer(&mut buffer, 44100.0, 2, 3, BufferLayout::Interleaved);
+
+        // sample
+        assert_eq!(block.sample(0, 1), 0.1);
+        assert_eq!(block.sample(1, 2), 1.2);
 
         assert_eq!(
             block.to_owned(false),

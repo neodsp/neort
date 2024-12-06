@@ -79,6 +79,12 @@ impl<F: Float> BlockRead<F> for BlockView<'_, F> {
 
     #[rtsan::nonblocking]
     #[inline(always)]
+    fn sample(&self, ch: u16, frame: u32) -> F {
+        self.data[[ch as usize, frame as usize]]
+    }
+
+    #[rtsan::nonblocking]
+    #[inline(always)]
     fn channel(&self, index: u16) -> ArrayView1<F> {
         self.data.row(index as usize)
     }
@@ -145,6 +151,10 @@ mod tests {
         assert_eq!(block.num_channels(), 2);
         assert_eq!(block.num_frames(), 3);
         assert_eq!(block.layout(), BufferLayout::Sequential);
+
+        // sample
+        assert_eq!(block.sample(0, 1), 0.1);
+        assert_eq!(block.sample(1, 2), 1.2);
 
         // fn channel(&self, index: u16) -> ArrayView1<Sample>;
         assert_eq!(block.channel(0), aview1(&[0.0, 0.1, 0.2]));

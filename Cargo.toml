@@ -18,3 +18,6 @@ rtsan = { git = "https://github.com/realtime-sanitizer/rtsan-standalone-rs", bra
 ndarray = "0.16"
 atomic_float = "1.1"
 realfft = "3.4"
+
+[dev-dependencies]
+babycat = "0.0.15"

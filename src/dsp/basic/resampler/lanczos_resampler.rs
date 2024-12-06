@@ -8,25 +8,25 @@ use crate::audio_block::{Block, BlockRead, BlockWrite};
 const KERNEL_A: i32 = 5;
 
 pub fn generate_output_block<F: Float>(
-    input: &impl BlockRead<F>,
+    input_sample_rate: f64,
+    input_num_frames: u32,
     output_sample_rate: f64,
 ) -> Block<F> {
     Block::new(
         48000.0,
         2,
-        calculate_output_frames(input, output_sample_rate),
+        calculate_output_frames(input_sample_rate, input_num_frames, output_sample_rate),
     )
 }
 
-#[rtsan::nonblocking]
-pub fn calculate_output_frames<F: Float>(
-    input: &impl BlockRead<F>,
+pub fn calculate_output_frames(
+    input_sample_rate: f64,
+    input_num_frames: u32,
     output_sample_rate: f64,
 ) -> u32 {
-    (input.num_frames() as f64 * output_sample_rate / input.sample_rate()).ceil() as u32
+    (input_num_frames as f64 * output_sample_rate / input_sample_rate).ceil() as u32
 }
 
-#[rtsan::nonblocking]
 fn lanczos_kernel<F: Float>(x: F, a: F) -> F {
     if x.is_zero() {
         return F::one();
@@ -38,7 +38,6 @@ fn lanczos_kernel<F: Float>(x: F, a: F) -> F {
     F::zero()
 }
 
-#[rtsan::nonblocking]
 pub fn compute_sample<F: Float>(input: ArrayView1<F>, frame_idx: F) -> F {
     let num_input_frames = input.len();
     let x_floor = frame_idx.to_i64().unwrap();
@@ -49,16 +48,25 @@ pub fn compute_sample<F: Float>(input: ArrayView1<F>, frame_idx: F) -> F {
         if (i as usize) < num_input_frames {
             output = output
                 + input[i as usize]
-                    * lanczos_kernel(frame_idx - F::from(i).unwrap(), F::from(KERNEL_A).unwrap());
+                    * F::from(lanczos_kernel(
+                        frame_idx - F::from(i).unwrap(),
+                        F::from(KERNEL_A).unwrap(),
+                    ))
+                    .unwrap();
         }
     }
     output
 }
 
 #[rtsan::nonblocking]
-pub fn process<F: Float>(input: &impl BlockRead<F>, output: &mut impl BlockWrite<F>) {
+pub fn process<F: Float>(
+    input: &impl BlockRead<F>,
+    num_input_frames: u32,
+    output: &mut impl BlockWrite<F>,
+) -> u32 {
     let output_sample_rate = output.sample_rate();
-    let num_output_frames = calculate_output_frames(input, output_sample_rate);
+    let num_output_frames =
+        calculate_output_frames(input.sample_rate(), input.num_frames(), output_sample_rate);
     assert_eq!(output.num_frames(), num_output_frames);
     for (mut output_ch, input_ch) in output.channels_mut().into_iter().zip(input.channels()) {
         for in_frame_id in 0..num_output_frames {
@@ -67,6 +75,7 @@ pub fn process<F: Float>(input: &impl BlockRead<F>, output: &mut impl BlockWrite
             output_ch[in_frame_id as usize] = compute_sample(input_ch, frame_idx);
         }
     }
+    num_output_frames
 }
 
 #[cfg(test)]
@@ -80,12 +89,13 @@ mod tests {
     #[test]
     fn lanczos_resampler() {
         let mut input_block = Block::<f32>::new(44100.0, 2, 10);
-        let mut output_block = generate_output_block(&input_block, 48000.0);
+        let mut output_block =
+            generate_output_block(input_block.sample_rate(), input_block.num_frames(), 48000.0);
 
         *input_block.sample_mut(0, 0) = 1.0;
         *input_block.sample_mut(1, 2) = 1.0;
 
-        process(&input_block, &mut output_block);
+        process(&input_block, input_block.num_frames(), &mut output_block);
 
         let mut data = vec![0.0; 20];
         data[0] = 1.0;

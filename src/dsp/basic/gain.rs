@@ -20,18 +20,24 @@ pub struct Gain<F: Float> {
 }
 
 impl<F: Float> Processor<F> for Gain<F> {
-    type PrepareResult = ();
-    type ProcessResult = ();
-    type SetParameterResult = ();
+    type Result = ();
     type Parameter = GainParameter;
 
-    fn prepare(&mut self, settings: &AudioSettings) -> Self::PrepareResult {
+    fn set_parameter(&mut self, param: Self::Parameter) -> Self::Result {
+        match param {
+            GainParameter::Gain { ch, gain } => {
+                self.current_gains[ch as usize].store(gain, Ordering::Relaxed);
+            }
+        }
+    }
+
+    fn prepare(&mut self, settings: &AudioSettings) -> Self::Result {
         self.current_gains
             .resize_with(settings.num_channels as usize, || AtomicF32::new(1.0));
     }
 
     #[rtsan::nonblocking]
-    fn process(&mut self, block: &mut impl BlockWrite<F>) -> Self::ProcessResult {
+    fn process(&mut self, block: &mut impl BlockWrite<F>) -> Self::Result {
         for (ch, mut channel) in block.channels_mut().into_iter().enumerate() {
             let gain = F::from(self.current_gains[ch].load(Ordering::Relaxed)).unwrap();
             channel.mapv_inplace(|v| v * gain);
@@ -39,14 +45,6 @@ impl<F: Float> Processor<F> for Gain<F> {
     }
 
     fn reset(&mut self) {}
-
-    fn set_parameter(&mut self, param: Self::Parameter) -> Self::SetParameterResult {
-        match param {
-            GainParameter::Gain { ch, gain } => {
-                self.current_gains[ch as usize].store(gain, Ordering::Relaxed);
-            }
-        }
-    }
 }
 
 #[cfg(test)]

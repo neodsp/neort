@@ -252,6 +252,7 @@ dependencies = [
  "ndarray",
  "num",
  "realfft",
+ "ringbuf",
  "rtsan",
 ]
 
@@ -409,6 +410,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "390252372b7f2aac8360fc5e72eba10136b166d6faeed97e6d0c8324eb99b2b1"
 dependencies = [
  "rustfft",
+]
+
+[[package]]
+name = "ringbuf"
+version = "0.4.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "726bb493fe9cac765e8f96a144c3a8396bdf766dedad22e504b70b908dcbceb4"
+dependencies = [
+ "crossbeam-utils",
+ "portable-atomic",
 ]
 
 [[package]]

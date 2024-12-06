@@ -11,13 +11,14 @@ keywords = ["neodsp", "audio", "dsp", "real-time"]
 categories = ["multimedia::audio"]
 
 [dependencies]
+atomic_float = "1.1"
+ndarray = "0.16"
 num = "0.4"
+realfft = "3.4"
+ringbuf = "0.4"
 rtsan = { git = "https://github.com/realtime-sanitizer/rtsan-standalone-rs", branch = "dev", features = [
     "sanitize",
 ] }
-ndarray = "0.16"
-atomic_float = "1.1"
-realfft = "3.4"
 
 [dev-dependencies]
 babycat = "0.0.15"

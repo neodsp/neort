@@ -57,7 +57,7 @@ mod tests {
 
     #[test]
     fn gain_process() {
-        let mut block = Block::from_array(array![[1.0, 1.0, 1.0], [1.0, 1.0, 1.0]], 44100.0);
+        let mut block = Block::from_array(array![[1.0, 1.0, 1.0], [1.0, 1.0, 1.0]]);
 
         let mut gain = Gain::default();
 

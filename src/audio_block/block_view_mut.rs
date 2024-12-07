@@ -9,81 +9,44 @@ use super::{block_view::BlockView, Block, BlockRead, BlockWrite, BufferLayout};
 #[derive(Debug, PartialEq)]
 pub struct BlockViewMut<'a, F: Float> {
     data: ArrayViewMut2<'a, F>,
-    sample_rate: f64,
 }
 
 impl<'a, F: Float> BlockViewMut<'a, F> {
     #[rtsan::nonblocking]
     pub fn from_buffer(
         buffer: &'a mut [F],
-        sample_rate: f64,
         num_channels: u16,
-        num_frames: usize,
+        num_frames: u32,
         layout: BufferLayout,
     ) -> Self {
         let data = match layout {
             BufferLayout::Sequential => {
-                ArrayViewMut2::from_shape((num_channels as usize, num_frames), buffer).unwrap()
+                ArrayViewMut2::from_shape((num_channels as usize, num_frames as usize), buffer)
+                    .unwrap()
             }
             BufferLayout::Interleaved => {
-                ArrayViewMut2::from_shape((num_channels as usize, num_frames).f(), buffer).unwrap()
+                ArrayViewMut2::from_shape((num_channels as usize, num_frames as usize).f(), buffer)
+                    .unwrap()
             }
         };
-        Self { data, sample_rate }
+        Self { data }
     }
 
     #[rtsan::nonblocking]
-    pub fn from_array_view(view: ArrayViewMut2<'a, F>, sample_rate: f64) -> Self {
-        Self {
-            data: view,
-            sample_rate,
-        }
+    pub fn from_array_view(view: ArrayViewMut2<'a, F>) -> Self {
+        Self { data: view }
     }
 
     pub fn to_owned(&self, force_sequential_layout: bool) -> Block<F> {
         if force_sequential_layout {
-            Block::from_array(self.data.as_standard_layout().to_owned(), self.sample_rate)
+            Block::from_array(self.data.as_standard_layout().to_owned())
         } else {
-            Block::from_array(self.data.to_owned(), self.sample_rate)
+            Block::from_array(self.data.to_owned())
         }
     }
 }
 
 impl<F: Float> BlockRead<F> for BlockViewMut<'_, F> {
-    #[rtsan::nonblocking]
-    #[inline(always)]
-    fn sample_rate(&self) -> f64 {
-        self.sample_rate
-    }
-
-    #[rtsan::nonblocking]
-    #[inline(always)]
-    fn num_channels(&self) -> u16 {
-        self.data.nrows() as u16
-    }
-
-    #[rtsan::nonblocking]
-    #[inline(always)]
-    fn num_frames(&self) -> u32 {
-        self.data.ncols() as u32
-    }
-
-    #[rtsan::nonblocking]
-    #[inline(always)]
-    fn layout(&self) -> BufferLayout {
-        if self.data.is_standard_layout() {
-            BufferLayout::Sequential
-        } else {
-            BufferLayout::Interleaved
-        }
-    }
-
-    #[rtsan::nonblocking]
-    #[inline(always)]
-    fn sample(&self, ch: u16, frame: u32) -> F {
-        self.data[[ch as usize, frame as usize]]
-    }
-
     #[rtsan::nonblocking]
     #[inline(always)]
     fn channel(&self, index: u16) -> ArrayView1<F> {
@@ -110,14 +73,20 @@ impl<F: Float> BlockRead<F> for BlockViewMut<'_, F> {
 
     #[rtsan::nonblocking]
     #[inline(always)]
+    fn view(&self) -> BlockView<F> {
+        BlockView::from_array_view(self.data.view())
+    }
+
+    #[rtsan::nonblocking]
+    #[inline(always)]
     fn raw_buffer(&self) -> &[F] {
         self.data.as_slice_memory_order().unwrap()
     }
 
     #[rtsan::nonblocking]
     #[inline(always)]
-    fn view(&self) -> BlockView<F> {
-        BlockView::from_array_view(self.data.view(), self.sample_rate)
+    fn data(&self) -> ndarray::ArrayView2<F> {
+        self.data.view()
     }
 }
 
@@ -154,14 +123,20 @@ impl<F: Float> BlockWrite<F> for BlockViewMut<'_, F> {
 
     #[rtsan::nonblocking]
     #[inline(always)]
+    fn view_mut(&mut self) -> BlockViewMut<F> {
+        BlockViewMut::from_array_view(self.data.view_mut())
+    }
+
+    #[rtsan::nonblocking]
+    #[inline(always)]
     fn raw_buffer_mut(&mut self) -> &mut [F] {
         self.data.as_slice_memory_order_mut().unwrap()
     }
 
     #[rtsan::nonblocking]
     #[inline(always)]
-    fn view_mut(&mut self) -> BlockViewMut<F> {
-        BlockViewMut::from_array_view(self.data.view_mut(), self.sample_rate)
+    fn data_mut(&mut self) -> ndarray::ArrayViewMut2<F> {
+        self.data.view_mut()
     }
 }
 
@@ -175,11 +150,11 @@ mod tests {
     #[test]
     fn block_view_mut_sequential() {
         let mut buffer = [0.0, 0.1, 0.2, 1.0, 1.1, 1.2];
-        let block = BlockViewMut::from_buffer(&mut buffer, 44100.0, 2, 3, BufferLayout::Sequential);
+        let block = BlockViewMut::from_buffer(&mut buffer, 2, 3, BufferLayout::Sequential);
 
         assert_eq!(
             block.to_owned(false),
-            Block::from_array(array![[0.0, 0.1, 0.2], [1.0, 1.1, 1.2]], 44100.0)
+            Block::from_array(array![[0.0, 0.1, 0.2], [1.0, 1.1, 1.2]])
         );
 
         assert_eq!(
@@ -188,7 +163,6 @@ mod tests {
         );
 
         // Block Read
-        assert_eq!(block.sample_rate(), 44100.0);
         assert_eq!(block.num_channels(), 2);
         assert_eq!(block.num_frames(), 3);
         assert_eq!(block.layout(), BufferLayout::Sequential);
@@ -224,7 +198,7 @@ mod tests {
         // fn view(&self) -> BlockView<Sample>;
         assert_eq!(
             block.view(),
-            BlockView::from_array_view(aview2(&[[0.0, 0.1, 0.2], [1.0, 1.1, 1.2]]), 44100.0)
+            BlockView::from_array_view(aview2(&[[0.0, 0.1, 0.2], [1.0, 1.1, 1.2]]))
         );
         // fn raw_buffer(&self) -> &[Sample];
         assert_eq!(block.raw_buffer(), &[0.0, 0.1, 0.2, 1.0, 1.1, 1.2]);
@@ -233,8 +207,7 @@ mod tests {
     #[test]
     fn block_view_mut_interleaved() {
         let mut buffer = [0.0, 1.0, 0.1, 1.1, 0.2, 1.2];
-        let block =
-            BlockViewMut::from_buffer(&mut buffer, 44100.0, 2, 3, BufferLayout::Interleaved);
+        let block = BlockViewMut::from_buffer(&mut buffer, 2, 3, BufferLayout::Interleaved);
 
         // sample
         assert_eq!(block.sample(0, 1), 0.1);
@@ -242,7 +215,7 @@ mod tests {
 
         assert_eq!(
             block.to_owned(false),
-            Block::from_array(array![[0.0, 0.1, 0.2], [1.0, 1.1, 1.2]], 44100.0)
+            Block::from_array(array![[0.0, 0.1, 0.2], [1.0, 1.1, 1.2]])
         );
 
         assert_eq!(
@@ -258,7 +231,7 @@ mod tests {
         assert_eq!(block.layout(), BufferLayout::Interleaved);
         assert_eq!(
             block.view(),
-            BlockView::from_array_view(aview2(&[[0.0, 0.1, 0.2], [1.0, 1.1, 1.2]]), 44100.0)
+            BlockView::from_array_view(aview2(&[[0.0, 0.1, 0.2], [1.0, 1.1, 1.2]]))
         );
         assert_eq!(block.raw_buffer(), &[0.0, 1.0, 0.1, 1.1, 0.2, 1.2]);
     }

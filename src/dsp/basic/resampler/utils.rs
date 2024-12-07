@@ -154,8 +154,8 @@ pub(crate) fn validate_buffers<T: Float>(
     input: &impl BlockRead<T>,
     output: &mut impl BlockWrite<T>,
     channels: u16,
-    min_input_frames: u32,
-    min_output_frames: u32,
+    min_input_frames: usize,
+    min_output_frames: usize,
 ) -> Result<(), &'static str> {
     if input.num_channels() != channels {
         return Err("ResampleError::WrongNumberOfInputChannels");

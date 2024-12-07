@@ -17,13 +17,13 @@ pub trait Resampler<F: Float + FftNum> {
         &mut self,
         input: &impl BlockRead<F>,
         output: &mut impl BlockWrite<F>,
-    ) -> Result<(u32, u32), ()>;
-    fn input_frames_max(&self) -> u32;
-    fn input_frames_next(&self) -> u32;
+    ) -> Result<(usize, usize), ()>;
+    fn input_frames_max(&self) -> usize;
+    fn input_frames_next(&self) -> usize;
     fn num_channels(&self) -> u16;
-    fn output_frames_max(&self) -> u32;
-    fn output_frames_next(&self) -> u32;
-    fn output_delay(&self) -> u32;
+    fn output_frames_max(&self) -> usize;
+    fn output_frames_next(&self) -> usize;
+    fn output_delay(&self) -> usize;
     fn reset(&mut self);
 
     fn generate_input_block(&self) -> Block<F> {

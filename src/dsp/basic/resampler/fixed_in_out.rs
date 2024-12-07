@@ -18,7 +18,7 @@ use super::{
 /// truncated as well as multiplied with an antialiasing filter
 /// before it's inverse transformed to get the resampled waveforms.
 pub struct ResamplerFixedInOut<F: Float + FftNum> {
-    num_channels: usize,
+    num_channels: u16,
     num_frames_in: usize,
     num_frames_out: usize,
     fft_size_in: usize,
@@ -37,7 +37,7 @@ impl<F: Float + FftNum> ResamplerFixedInOut<F> {
     pub fn new(
         sample_rate_input: usize,
         sample_rate_output: usize,
-        frame_size_in: u32,
+        frame_size_in: usize,
         num_channels: u16,
     ) -> Result<Self, ()> {
         validate_sample_rates(sample_rate_input, sample_rate_output)?;
@@ -53,7 +53,7 @@ impl<F: Float + FftNum> ResamplerFixedInOut<F> {
         let overlaps: Vec<Vec<F>> = vec![vec![F::zero(); fft_size_out]; num_channels as usize];
 
         Ok(ResamplerFixedInOut {
-            num_channels: num_channels as usize,
+            num_channels,
             num_frames_in: fft_size_in,
             num_frames_out: fft_size_out,
             fft_size_in,
@@ -69,13 +69,13 @@ impl<F: Float + FftNum> Resampler<F> for ResamplerFixedInOut<F> {
         &mut self,
         input: &impl BlockRead<F>,
         output: &mut impl BlockWrite<F>,
-    ) -> Result<(u32, u32), ()> {
+    ) -> Result<(usize, usize), ()> {
         validate_buffers(
             input,
             output,
             self.num_channels as u16,
-            self.num_frames_in as u32,
-            self.num_frames_out as u32,
+            self.num_frames_in,
+            self.num_frames_out,
         )
         .unwrap();
 
@@ -88,31 +88,31 @@ impl<F: Float + FftNum> Resampler<F> for ResamplerFixedInOut<F> {
             self.resampler.resample_unit(input, output, &mut overlap);
         }
 
-        Ok((self.num_frames_in as u32, self.num_frames_out as u32))
+        Ok((self.num_frames_in, self.num_frames_out))
     }
 
-    fn input_frames_max(&self) -> u32 {
-        self.fft_size_in as u32
+    fn input_frames_max(&self) -> usize {
+        self.fft_size_in
     }
 
-    fn input_frames_next(&self) -> u32 {
-        self.fft_size_in as u32
+    fn input_frames_next(&self) -> usize {
+        self.fft_size_in
     }
 
     fn num_channels(&self) -> u16 {
         self.num_channels as u16
     }
 
-    fn output_frames_max(&self) -> u32 {
-        self.num_frames_out as u32
+    fn output_frames_max(&self) -> usize {
+        self.num_frames_out
     }
 
-    fn output_frames_next(&self) -> u32 {
+    fn output_frames_next(&self) -> usize {
         self.output_frames_max()
     }
 
-    fn output_delay(&self) -> u32 {
-        self.num_frames_out as u32 / 2
+    fn output_delay(&self) -> usize {
+        self.num_frames_out / 2
     }
 
     fn reset(&mut self) {

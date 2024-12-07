@@ -30,8 +30,8 @@ pub trait BlockRead<F: Float> {
 
     #[rtsan::nonblocking]
     #[inline(always)]
-    fn num_frames(&self) -> u32 {
-        self.data().ncols() as u32
+    fn num_frames(&self) -> usize {
+        self.data().ncols()
     }
 
     #[rtsan::nonblocking]
@@ -45,12 +45,12 @@ pub trait BlockRead<F: Float> {
     }
     #[rtsan::nonblocking]
     #[inline(always)]
-    fn sample(&self, ch: u16, frame: u32) -> F {
-        self.data()[[ch as usize, frame as usize]]
+    fn sample(&self, ch: u16, frame: usize) -> F {
+        self.data()[[ch as usize, frame]]
     }
 
     fn channel(&self, index: u16) -> ArrayView1<F>;
-    fn frame(&self, index: u32) -> ArrayView1<F>;
+    fn frame(&self, index: usize) -> ArrayView1<F>;
     fn channels(&self) -> Lanes<F, Dim<[usize; 1]>>;
     fn frames(&self) -> Lanes<F, Dim<[usize; 1]>>;
     fn view(&self) -> BlockView<F>;
@@ -65,9 +65,9 @@ pub trait BlockRead<F: Float> {
 /// All functions inside of this trait are real-time safe
 /// and meant to be called inside of your process function.
 pub trait BlockWrite<F: Float>: BlockRead<F> {
-    fn sample_mut(&mut self, ch: u16, frame: u32) -> &mut F;
+    fn sample_mut(&mut self, ch: u16, frame: usize) -> &mut F;
     fn channel_mut(&mut self, index: u16) -> ArrayViewMut1<F>;
-    fn frame_mut(&mut self, index: u32) -> ArrayViewMut1<F>;
+    fn frame_mut(&mut self, index: usize) -> ArrayViewMut1<F>;
     fn channels_mut(&mut self) -> LanesMut<F, Dim<[usize; 1]>>;
     fn frames_mut(&mut self) -> LanesMut<F, Dim<[usize; 1]>>;
 

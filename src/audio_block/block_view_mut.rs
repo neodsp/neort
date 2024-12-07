@@ -11,22 +11,28 @@ pub struct BlockViewMut<'a, F: Float> {
     data: ArrayViewMut2<'a, F>,
 }
 
+impl<'a, F: Float> Default for BlockViewMut<'a, F> {
+    fn default() -> Self {
+        Self {
+            data: ArrayViewMut2::from_shape((0, 0), &mut []).unwrap(),
+        }
+    }
+}
+
 impl<'a, F: Float> BlockViewMut<'a, F> {
     #[rtsan::nonblocking]
     pub fn from_buffer(
         buffer: &'a mut [F],
         num_channels: u16,
-        num_frames: u32,
+        num_frames: usize,
         layout: BufferLayout,
     ) -> Self {
         let data = match layout {
             BufferLayout::Sequential => {
-                ArrayViewMut2::from_shape((num_channels as usize, num_frames as usize), buffer)
-                    .unwrap()
+                ArrayViewMut2::from_shape((num_channels as usize, num_frames), buffer).unwrap()
             }
             BufferLayout::Interleaved => {
-                ArrayViewMut2::from_shape((num_channels as usize, num_frames as usize).f(), buffer)
-                    .unwrap()
+                ArrayViewMut2::from_shape((num_channels as usize, num_frames).f(), buffer).unwrap()
             }
         };
         Self { data }
@@ -55,8 +61,8 @@ impl<F: Float> BlockRead<F> for BlockViewMut<'_, F> {
 
     #[rtsan::nonblocking]
     #[inline(always)]
-    fn frame(&self, index: u32) -> ArrayView1<F> {
-        self.data.column(index as usize)
+    fn frame(&self, index: usize) -> ArrayView1<F> {
+        self.data.column(index)
     }
 
     #[rtsan::nonblocking]
@@ -93,8 +99,8 @@ impl<F: Float> BlockRead<F> for BlockViewMut<'_, F> {
 impl<F: Float> BlockWrite<F> for BlockViewMut<'_, F> {
     #[rtsan::nonblocking]
     #[inline(always)]
-    fn sample_mut(&mut self, ch: u16, frame: u32) -> &mut F {
-        &mut self.data[[ch as usize, frame as usize]]
+    fn sample_mut(&mut self, ch: u16, frame: usize) -> &mut F {
+        &mut self.data[[ch as usize, frame]]
     }
 
     #[rtsan::nonblocking]
@@ -105,8 +111,8 @@ impl<F: Float> BlockWrite<F> for BlockViewMut<'_, F> {
 
     #[rtsan::nonblocking]
     #[inline(always)]
-    fn frame_mut(&mut self, index: u32) -> ArrayViewMut1<F> {
-        self.data.column_mut(index as usize)
+    fn frame_mut(&mut self, index: usize) -> ArrayViewMut1<F> {
+        self.data.column_mut(index)
     }
 
     #[rtsan::nonblocking]

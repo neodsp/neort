@@ -19,7 +19,7 @@ use super::{
 /// truncated as well as multiplied with an antialiasing filter
 /// before it's inverse transformed to get the resampled waveforms.
 pub struct ResamplerFixedIn<F: Float + FftNum> {
-    num_channels: usize,
+    num_channels: u16,
     num_frames_in: usize,
     fft_size_in: usize,
     fft_size_out: usize,
@@ -41,15 +41,15 @@ impl<F: Float + FftNum> ResamplerFixedIn<F> {
     pub fn new(
         sample_rate_input: usize,
         sample_rate_output: usize,
-        num_frames_in: u32,
-        sub_chunks: u16,
+        num_frames_in: usize,
+        sub_chunks: usize,
         num_channels: u16,
     ) -> Result<Self, ()> {
         validate_sample_rates(sample_rate_input, sample_rate_output)?;
 
         let gcd = num::integer::gcd(sample_rate_input, sample_rate_output);
         let min_chunk_in = sample_rate_input / gcd;
-        let wanted_subsize = num_frames_in / sub_chunks as u32;
+        let wanted_subsize = num_frames_in / sub_chunks;
         let fft_chunks = (wanted_subsize as f32 / min_chunk_in as f32).ceil() as usize;
         let fft_size_out = fft_chunks * sample_rate_output / gcd;
         let fft_size_in = fft_chunks * sample_rate_input / gcd;
@@ -58,13 +58,13 @@ impl<F: Float + FftNum> ResamplerFixedIn<F> {
 
         let overlaps: Vec<Vec<F>> = vec![vec![F::zero(); fft_size_out]; num_channels as usize];
         let input_buffers: Vec<Vec<F>> =
-            vec![vec![F::zero(); num_frames_in as usize + fft_size_in]; num_channels as usize];
+            vec![vec![F::zero(); num_frames_in + fft_size_in]; num_channels as usize];
 
         let saved_frames = 0;
 
         Ok(ResamplerFixedIn {
-            num_channels: num_channels as usize,
-            num_frames_in: num_frames_in as usize,
+            num_channels,
+            num_frames_in,
             fft_size_in,
             fft_size_out,
             overlaps,
@@ -81,7 +81,7 @@ impl<F: Float + FftNum> Resampler<F> for ResamplerFixedIn<F> {
         &mut self,
         input: &impl BlockRead<F>,
         output: &mut impl BlockWrite<F>,
-    ) -> Result<(u32, u32), ()> {
+    ) -> Result<(usize, usize), ()> {
         let next_saved_frames = self.saved_frames + self.num_frames_in;
         let nbr_chunks_ready =
             (next_saved_frames as f32 / self.fft_size_in as f32).floor() as usize;
@@ -90,9 +90,9 @@ impl<F: Float + FftNum> Resampler<F> for ResamplerFixedIn<F> {
         validate_buffers(
             input,
             output,
-            self.num_channels as u16,
-            self.num_frames_in as u32,
-            needed_len as u32,
+            self.num_channels,
+            self.num_frames_in,
+            needed_len,
         )
         .unwrap();
 
@@ -145,35 +145,36 @@ impl<F: Float + FftNum> Resampler<F> for ResamplerFixedIn<F> {
             }
         }
         self.saved_frames = extra;
-        Ok((self.num_frames_in as u32, needed_len as u32))
+        Ok((self.num_frames_in, needed_len))
     }
 
-    fn input_frames_max(&self) -> u32 {
-        self.num_frames_in as u32
+    fn input_frames_max(&self) -> usize {
+        self.num_frames_in
     }
 
-    fn input_frames_next(&self) -> u32 {
-        self.num_frames_in as u32
+    fn input_frames_next(&self) -> usize {
+        self.num_frames_in
     }
 
     fn num_channels(&self) -> u16 {
-        self.num_channels as u16
+        self.num_channels
     }
 
-    fn output_frames_max(&self) -> u32 {
+    fn output_frames_max(&self) -> usize {
         let max_stored_frames = self.fft_size_in - 1;
         let max_available_frames = max_stored_frames + self.num_frames_in;
         let max_subchunks_to_process = max_available_frames / self.fft_size_in;
-        (max_subchunks_to_process * self.fft_size_out) as u32
+        max_subchunks_to_process * self.fft_size_out
     }
 
-    fn output_frames_next(&self) -> u32 {
-        (((self.saved_frames + self.num_frames_in) as f32) / self.fft_size_in as f32).floor() as u32
-            * self.fft_size_out as u32
+    fn output_frames_next(&self) -> usize {
+        (((self.saved_frames + self.num_frames_in) as f32) / self.fft_size_in as f32).floor()
+            as usize
+            * self.fft_size_out
     }
 
-    fn output_delay(&self) -> u32 {
-        self.fft_size_out as u32 / 2
+    fn output_delay(&self) -> usize {
+        self.fft_size_out / 2
     }
 
     fn reset(&mut self) {

@@ -11,10 +11,18 @@ pub struct Block<F: Float> {
     data: Array2<F>,
 }
 
-impl<F: Float> Block<F> {
-    pub fn new(num_channels: u16, num_frames: u32) -> Self {
+impl<F: Float> Default for Block<F> {
+    fn default() -> Self {
         Self {
-            data: Array2::zeros((num_channels as usize, num_frames as usize)),
+            data: Array2::zeros((0, 0)),
+        }
+    }
+}
+
+impl<F: Float> Block<F> {
+    pub fn new(num_channels: u16, num_frames: usize) -> Self {
+        Self {
+            data: Array2::zeros((num_channels as usize, num_frames)),
         }
     }
 
@@ -32,8 +40,8 @@ impl<F: Float> BlockRead<F> for Block<F> {
 
     #[rtsan::nonblocking]
     #[inline(always)]
-    fn frame(&self, index: u32) -> ArrayView1<F> {
-        self.data.column(index as usize)
+    fn frame(&self, index: usize) -> ArrayView1<F> {
+        self.data.column(index)
     }
 
     #[rtsan::nonblocking]
@@ -70,8 +78,8 @@ impl<F: Float> BlockRead<F> for Block<F> {
 impl<F: Float> BlockWrite<F> for Block<F> {
     #[rtsan::nonblocking]
     #[inline(always)]
-    fn sample_mut(&mut self, ch: u16, frame: u32) -> &mut F {
-        &mut self.data[[ch as usize, frame as usize]]
+    fn sample_mut(&mut self, ch: u16, frame: usize) -> &mut F {
+        &mut self.data[[ch as usize, frame]]
     }
 
     #[rtsan::nonblocking]
@@ -82,8 +90,8 @@ impl<F: Float> BlockWrite<F> for Block<F> {
 
     #[rtsan::nonblocking]
     #[inline(always)]
-    fn frame_mut(&mut self, index: u32) -> ArrayViewMut1<F> {
-        self.data.column_mut(index as usize)
+    fn frame_mut(&mut self, index: usize) -> ArrayViewMut1<F> {
+        self.data.column_mut(index)
     }
 
     #[rtsan::nonblocking]

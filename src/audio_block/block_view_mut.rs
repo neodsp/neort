@@ -1,6 +1,6 @@
 use ndarray::{
     iter::{Lanes, LanesMut},
-    ArrayView1, ArrayViewMut1, ArrayViewMut2, Dim, ShapeBuilder,
+    s, ArrayView1, ArrayViewMut1, ArrayViewMut2, Dim, ShapeBuilder,
 };
 use num::Float;
 
@@ -85,6 +85,12 @@ impl<F: Float> BlockRead<F> for BlockViewMut<'_, F> {
 
     #[rtsan::nonblocking]
     #[inline(always)]
+    fn view_slice(&self, range: std::ops::Range<usize>) -> BlockView<F> {
+        BlockView::from_array_view(self.data.slice(s![.., range]))
+    }
+
+    #[rtsan::nonblocking]
+    #[inline(always)]
     fn raw_buffer(&self) -> &[F] {
         self.data.as_slice_memory_order().unwrap()
     }
@@ -131,6 +137,12 @@ impl<F: Float> BlockWrite<F> for BlockViewMut<'_, F> {
     #[inline(always)]
     fn view_mut(&mut self) -> BlockViewMut<F> {
         BlockViewMut::from_array_view(self.data.view_mut())
+    }
+
+    #[rtsan::nonblocking]
+    #[inline(always)]
+    fn view_slice_mut(&mut self, range: std::ops::Range<usize>) -> BlockViewMut<F> {
+        BlockViewMut::from_array_view(self.data.slice_mut(s![.., range]))
     }
 
     #[rtsan::nonblocking]

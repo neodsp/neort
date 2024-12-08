@@ -45,8 +45,9 @@ impl<F: Float> Ringbuffer<F> {
     }
 
     #[rtsan::nonblocking]
-    pub fn push_block(&mut self, block: &impl BlockRead<F>, num_frames: usize) -> bool {
+    pub fn push_block(&mut self, block: &impl BlockRead<F>) -> bool {
         let mut pushed_all = true;
+        let num_frames = block.num_frames();
         for (rb, channel) in self.ringbuffers.iter_mut().zip(block.channels()) {
             let num_pushed = rb.push_iter(channel.iter().take(num_frames).copied());
             if num_pushed != num_frames {
@@ -57,8 +58,9 @@ impl<F: Float> Ringbuffer<F> {
     }
 
     #[rtsan::nonblocking]
-    pub fn pop_block(&mut self, block: &mut impl BlockWrite<F>, num_frames: usize) -> bool {
+    pub fn pop_block(&mut self, block: &mut impl BlockWrite<F>) -> bool {
         let mut popped_all = true;
+        let num_frames = block.num_frames();
         for (rb, mut channel) in self.ringbuffers.iter_mut().zip(block.channels_mut()) {
             if rb.occupied_len() < num_frames {
                 popped_all = false;
@@ -101,7 +103,7 @@ mod tests {
         assert_eq!(rb.num_frames_stored(), 0);
         assert_eq!(rb.num_frames_free(), 1024);
 
-        rb.push_block(&block, block.num_frames());
+        rb.push_block(&block);
 
         assert_eq!(rb.num_frames_stored(), 512);
         assert_eq!(rb.num_frames_free(), 512);
@@ -109,14 +111,13 @@ mod tests {
         block.channel_mut(0).fill(3.0);
         block.channel_mut(1).fill(4.0);
 
-        rb.push_block(&block, block.num_frames());
+        rb.push_block(&block);
         assert_eq!(rb.num_frames_stored(), 1024);
         assert_eq!(rb.num_frames_free(), 0);
 
         let mut out_block = Block::new(2, 512);
 
-        let num_frames = out_block.num_frames();
-        let popped_all = rb.pop_block(&mut out_block, num_frames);
+        let popped_all = rb.pop_block(&mut out_block);
         assert!(popped_all);
         assert_eq!(rb.num_frames_stored(), 512);
         assert_eq!(rb.num_frames_free(), 512);
@@ -124,8 +125,7 @@ mod tests {
         assert_eq!(out_block.channel(0), aview1(&[1.0; 512]));
         assert_eq!(out_block.channel(1), aview1(&[2.0; 512]));
 
-        let num_frames = out_block.num_frames();
-        let pushed_all = rb.pop_block(&mut out_block, num_frames);
+        let pushed_all = rb.pop_block(&mut out_block);
         assert!(pushed_all);
         assert_eq!(rb.num_frames_stored(), 0);
         assert_eq!(rb.num_frames_free(), 1024);

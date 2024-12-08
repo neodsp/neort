@@ -1,4 +1,4 @@
-use ndarray::{iter::Lanes, ArrayView1, ArrayView2, Dim, ShapeBuilder};
+use ndarray::{iter::Lanes, s, ArrayView1, ArrayView2, Dim, ShapeBuilder};
 use num::Float;
 
 use super::{Block, BlockRead, BufferLayout};
@@ -80,6 +80,12 @@ impl<F: Float> BlockRead<F> for BlockView<'_, F> {
     #[inline(always)]
     fn view(&self) -> BlockView<F> {
         BlockView::from_array_view(self.data.view())
+    }
+
+    #[rtsan::nonblocking]
+    #[inline(always)]
+    fn view_slice(&self, range: std::ops::Range<usize>) -> BlockView<F> {
+        BlockView::from_array_view(self.data.slice(s![.., range]))
     }
 
     #[rtsan::nonblocking]

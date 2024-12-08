@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use ndarray::{
     iter::{Lanes, LanesMut},
     ArrayView1, ArrayView2, ArrayViewMut1, ArrayViewMut2, Dim,
@@ -55,6 +57,8 @@ pub trait BlockRead<F: Float> {
     fn frames(&self) -> Lanes<F, Dim<[usize; 1]>>;
     fn view(&self) -> BlockView<F>;
     // TODO: write test
+    fn view_slice(&self, range: Range<usize>) -> BlockView<F>;
+    // TODO: write test
     fn data(&self) -> ArrayView2<F>;
     /// This can return sequential or interleaved data.
     /// The layout can be checked with [`BlockView::layout`] or [`BlockViewMut::layout`].
@@ -72,6 +76,9 @@ pub trait BlockWrite<F: Float>: BlockRead<F> {
     fn frames_mut(&mut self) -> LanesMut<F, Dim<[usize; 1]>>;
 
     fn view_mut(&mut self) -> BlockViewMut<F>;
+
+    // TODO: write test
+    fn view_slice_mut(&mut self, range: Range<usize>) -> BlockViewMut<F>;
 
     /// This can return sequential or interleaved data.
     /// The layout can be checked with [`BlockView::layout`] or [`BlockViewMut::layout`].

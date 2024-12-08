@@ -68,41 +68,32 @@ impl<F: Float + FftNum> Adapter<F> {
         block: &mut impl BlockWrite<F>,
         mut process_fn: impl FnMut(&mut Block<F>),
     ) {
-        assert!(self.input_rb.push_block(block, block.num_frames()));
+        assert!(self.input_rb.push_block(block));
 
         if let Some(resamplers) = self.resamplers.as_mut() {
             // Resampling necessary
             while self.input_rb.num_frames_stored() >= resamplers.input_frames_next() {
-                let num_input_frames = resamplers.input_frames_next();
-                assert!(self
-                    .input_rb
-                    .pop_block(resamplers.input_block(), num_input_frames));
+                assert!(self.input_rb.pop_block(&mut resamplers.input_block()));
                 resamplers.process_input(&mut self.process_block);
 
                 process_fn(&mut self.process_block);
 
-                let num_output_frames = resamplers.output_frames_next();
                 resamplers.process_output(&self.process_block);
-                assert!(self
-                    .output_rb
-                    .push_block(resamplers.output_block(), num_output_frames));
+                assert!(self.output_rb.push_block(&resamplers.output_block()));
             }
         } else {
             // Resampling unnecessary
             while self.input_rb.num_frames_stored() >= self.user_num_frames {
-                self.input_rb
-                    .pop_block(&mut self.process_block, self.user_num_frames);
+                self.input_rb.pop_block(&mut self.process_block);
 
                 process_fn(&mut self.process_block);
 
-                assert!(self
-                    .output_rb
-                    .push_block(&self.process_block, self.user_num_frames));
+                assert!(self.output_rb.push_block(&self.process_block));
             }
         }
 
         if self.output_rb.num_frames_stored() >= block.num_frames() {
-            assert!(self.output_rb.pop_block(block, block.num_frames()));
+            assert!(self.output_rb.pop_block(block));
         } else {
             block.clear();
         }

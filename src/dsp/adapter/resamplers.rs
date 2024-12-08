@@ -2,7 +2,7 @@ use num::Float;
 use realfft::FftNum;
 
 use crate::{
-    audio_block::{Block, BlockRead, BlockWrite},
+    audio_block::{Block, BlockRead, BlockView, BlockViewMut, BlockWrite},
     dsp::resampler::{Resampler, ResamplerFixedIn, ResamplerFixedOut},
 };
 
@@ -11,6 +11,8 @@ pub struct Resamplers<F: Float + FftNum> {
     output: ResamplerFixedIn<F>,
     input_block: Block<F>,
     output_block: Block<F>,
+    in_frames_next: usize,
+    out_frames_last: usize,
 }
 
 impl<F: Float + FftNum> Resamplers<F> {
@@ -40,6 +42,8 @@ impl<F: Float + FftNum> Resamplers<F> {
         Self {
             input_block: input.generate_input_block(),
             output_block: output.generate_output_block(),
+            in_frames_next: input.input_frames_next(),
+            out_frames_last: output.output_frames_next(),
             input,
             output,
         }
@@ -47,9 +51,11 @@ impl<F: Float + FftNum> Resamplers<F> {
 
     pub fn process_input(&mut self, output: &mut impl BlockWrite<F>) {
         self.input.process(&self.input_block, output).unwrap();
+        self.in_frames_next = self.input_frames_next();
     }
 
     pub fn process_output(&mut self, input: &impl BlockRead<F>) {
+        self.out_frames_last = self.output_frames_next();
         self.output.process(input, &mut self.output_block).unwrap();
     }
 
@@ -68,14 +74,12 @@ impl<F: Float + FftNum> Resamplers<F> {
         self.output_block.clear();
     }
 
-    pub fn input_block(&mut self) -> &mut Block<F> {
-        // maybe create a new view that only has the size of the actual amount of output frames
-        &mut self.input_block
+    pub fn input_block(&mut self) -> BlockViewMut<F> {
+        self.input_block.view_slice_mut(0..self.in_frames_next)
     }
 
-    pub fn output_block(&self) -> &Block<F> {
-        // maybe create a new view that only has the size of the actual amount of output frames
-        &self.output_block
+    pub fn output_block(&self) -> BlockView<F> {
+        self.output_block.view_slice(0..self.out_frames_last)
     }
 
     pub fn frames_max(&self) -> usize {

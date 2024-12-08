@@ -5,7 +5,7 @@ use tools::{find_max_index, impulse_response};
 
 use crate::{
     audio_block::{Block, BlockWrite},
-    ringbuffer::RingbufferLocal,
+    ringbuffer::{Ringbuffer, RingbufferLocal},
 };
 
 mod resamplers;

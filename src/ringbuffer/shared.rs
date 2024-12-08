@@ -7,6 +7,8 @@ use ringbuf::{
 
 use crate::audio_block::{BlockRead, BlockWrite};
 
+use super::Ringbuffer;
+
 pub struct RingbufferShared<F: Float> {
     ringbuffers: Vec<SharedRb<Heap<F>>>,
 }
@@ -19,8 +21,8 @@ impl<F: Float> Default for RingbufferShared<F> {
     }
 }
 
-impl<F: Float> RingbufferShared<F> {
-    pub fn prepare(&mut self, num_channels: u16, frame_capacity: usize, latency: usize) {
+impl<F: Float> Ringbuffer<F> for RingbufferShared<F> {
+    fn prepare(&mut self, num_channels: u16, frame_capacity: usize, latency: usize) {
         assert!(latency < frame_capacity);
         self.ringbuffers = Vec::with_capacity(num_channels as usize);
         for _ in 0..num_channels {
@@ -36,16 +38,8 @@ impl<F: Float> RingbufferShared<F> {
         }
     }
 
-    pub fn num_frames_stored(&self) -> usize {
-        self.ringbuffers[0].occupied_len()
-    }
-
-    pub fn num_frames_free(&self) -> usize {
-        self.ringbuffers[0].vacant_len()
-    }
-
     #[rtsan::nonblocking]
-    pub fn push_block(&mut self, block: &impl BlockRead<F>) -> bool {
+    fn push_block(&mut self, block: &impl BlockRead<F>) -> bool {
         let mut pushed_all = true;
         let num_frames = block.num_frames();
         for (rb, channel) in self.ringbuffers.iter_mut().zip(block.channels()) {
@@ -58,7 +52,7 @@ impl<F: Float> RingbufferShared<F> {
     }
 
     #[rtsan::nonblocking]
-    pub fn pop_block(&mut self, block: &mut impl BlockWrite<F>) -> bool {
+    fn pop_block(&mut self, block: &mut impl BlockWrite<F>) -> bool {
         let mut popped_all = true;
         let num_frames = block.num_frames();
         for (rb, mut channel) in self.ringbuffers.iter_mut().zip(block.channels_mut()) {
@@ -74,10 +68,18 @@ impl<F: Float> RingbufferShared<F> {
         popped_all
     }
 
-    pub fn reset(&mut self) {
+    fn reset(&mut self) {
         for rb in self.ringbuffers.iter_mut() {
             rb.clear();
         }
+    }
+
+    fn num_frames_stored(&self) -> usize {
+        self.ringbuffers[0].occupied_len()
+    }
+
+    fn num_frames_free(&self) -> usize {
+        self.ringbuffers[0].vacant_len()
     }
 }
 

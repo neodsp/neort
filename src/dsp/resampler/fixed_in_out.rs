@@ -126,7 +126,7 @@ impl<F: Float + FftNum> Resampler<F> for ResamplerFixedInOut<F> {
 mod tests {
     use rubato::Resampler as _;
 
-    use crate::dsp::basic::resampler::Resampler;
+    use crate::dsp::resampler::Resampler;
 
     use super::*;
 

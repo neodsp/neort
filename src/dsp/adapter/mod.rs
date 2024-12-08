@@ -1,74 +1,15 @@
 use num::Float;
 use realfft::FftNum;
+use resamplers::Resamplers;
+use tools::{find_max_index, impulse_response};
 
 use crate::{
-    audio_block::{Block, BlockRead, BlockWrite},
+    audio_block::{Block, BlockWrite},
     ringbuffer::Ringbuffer,
 };
 
-use super::resampler::{Resampler, ResamplerFixedIn, ResamplerFixedOut};
-
-pub struct Resamplers<F: Float + FftNum> {
-    input: ResamplerFixedOut<F>,
-    output: ResamplerFixedIn<F>,
-    input_block: Block<F>,
-    output_block: Block<F>,
-}
-
-impl<F: Float + FftNum> Resamplers<F> {
-    pub fn new(
-        num_channels: u16,
-        system_sample_rate: usize,
-        user_sample_rate: usize,
-        user_num_frames: usize,
-    ) -> Self {
-        let input = ResamplerFixedOut::new(
-            system_sample_rate,
-            user_sample_rate,
-            user_num_frames,
-            1,
-            num_channels,
-        )
-        .unwrap();
-        let output = ResamplerFixedIn::new(
-            user_sample_rate,
-            system_sample_rate,
-            user_num_frames,
-            1,
-            num_channels,
-        )
-        .unwrap();
-
-        Self {
-            input_block: input.generate_input_block(),
-            output_block: output.generate_output_block(),
-            input,
-            output,
-        }
-    }
-
-    pub fn process_input(&mut self, output: &mut impl BlockWrite<F>) {
-        self.input.process(&self.input_block, output).unwrap();
-    }
-
-    pub fn process_output(&mut self, input: &impl BlockRead<F>) {
-        self.output.process(input, &mut self.output_block).unwrap();
-    }
-
-    pub fn input_block(&mut self) -> &mut Block<F> {
-        &mut self.input_block
-    }
-
-    pub fn output_block(&self) -> &Block<F> {
-        &self.output_block
-    }
-
-    pub fn frames_max(&self) -> usize {
-        self.input
-            .input_frames_max()
-            .max(self.output.output_frames_max())
-    }
-}
+mod resamplers;
+mod tools;
 
 #[derive(Default)]
 pub struct Adapter<F: Float + FftNum> {
@@ -76,10 +17,11 @@ pub struct Adapter<F: Float + FftNum> {
     output_rb: Ringbuffer<F>,
     resamplers: Option<Resamplers<F>>,
     process_block: Block<F>,
-    num_frames: usize,
+    user_num_frames: usize,
 }
 
 impl<F: Float + FftNum> Adapter<F> {
+    /// Returns the delay the adaptor is expected to have
     pub fn prepare(
         &mut self,
         num_channels: u16,
@@ -87,8 +29,8 @@ impl<F: Float + FftNum> Adapter<F> {
         system_max_num_frames: usize,
         user_sample_rate: usize,
         user_num_frames: usize,
-    ) {
-        self.num_frames = user_num_frames;
+    ) -> usize {
+        self.user_num_frames = user_num_frames;
 
         if system_sample_rate != user_sample_rate {
             self.resamplers = Some(Resamplers::new(
@@ -111,6 +53,13 @@ impl<F: Float + FftNum> Adapter<F> {
 
         self.input_rb.prepare(num_channels, max_frames * 3, 0);
         self.output_rb.prepare(num_channels, max_frames * 2, 0);
+
+        let ir = impulse_response(10, system_max_num_frames, |block| {
+            self.process(block, |_| {});
+        });
+        self.reset();
+        let delay = find_max_index(&ir);
+        delay
     }
 
     fn process(
@@ -121,7 +70,8 @@ impl<F: Float + FftNum> Adapter<F> {
         self.input_rb.push_block(block);
 
         if let Some(resamplers) = self.resamplers.as_mut() {
-            while self.input_rb.num_frames_stored() >= resamplers.input.input_frames_next() {
+            // Resampling necessary
+            while self.input_rb.num_frames_stored() >= resamplers.input_frames_next() {
                 self.input_rb.pop_block(resamplers.input_block());
                 resamplers.process_input(&mut self.process_block);
 
@@ -131,15 +81,26 @@ impl<F: Float + FftNum> Adapter<F> {
                 self.output_rb.push_block(resamplers.output_block());
             }
         } else {
-            while self.input_rb.num_frames_stored() >= self.num_frames {
+            // Resampling unnecessary
+            while self.input_rb.num_frames_stored() >= self.user_num_frames {
                 self.input_rb.pop_block(&mut self.process_block);
+
                 process_fn(&mut self.process_block);
+
                 self.output_rb.push_block(&self.process_block);
             }
         }
 
         if self.output_rb.num_frames_stored() >= block.num_frames() {
             self.output_rb.pop_block(block);
+        } else {
+            block.clear();
         }
+    }
+
+    pub fn reset(&mut self) {
+        self.resamplers.as_mut().map(|r| r.reset());
+        self.input_rb.reset();
+        self.output_rb.reset();
     }
 }

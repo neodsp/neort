@@ -73,6 +73,12 @@ impl<F: Float> Ringbuffer<F> {
         }
         pushed_all
     }
+
+    pub fn reset(&mut self) {
+        for rb in self.ringbuffers.iter_mut() {
+            rb.clear();
+        }
+    }
 }
 
 #[cfg(test)]

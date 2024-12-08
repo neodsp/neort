@@ -27,8 +27,8 @@ pub fn impulse_response<F: Float>(
         impulse_response.push(*sample);
     }
 
-    impulse.clear();
     for _ in 1..num_iterations {
+        impulse.clear();
         process_fn(&mut impulse);
         for sample in impulse.channel(0).iter() {
             impulse_response.push(*sample);

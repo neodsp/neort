@@ -32,8 +32,8 @@ impl<F: Float + FftNum> ResamplerFixedInOut<F> {
     /// Parameters are:
     /// - `sample_rate_input`: Input sample rate, must be > 0.
     /// - `sample_rate_output`: Output sample rate, must be > 0.
-    /// - `chunk_size_in`: desired length of input data in frames, actual value may be different.
-    /// - `nbr_channels`: number of channels in input/output.
+    /// - `frame_size_in`: desired length of input data in frames, actual value may be different.
+    /// - `num_channels`: number of channels in input/output.
     pub fn new(
         sample_rate_input: usize,
         sample_rate_output: usize,

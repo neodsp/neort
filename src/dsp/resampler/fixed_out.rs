@@ -1,6 +1,6 @@
 // The resamplers are copied from rubato by Henrik Enquist and adapted to take Blocks
 
-use ndarray::ArrayViewMut1;
+use ndarray::{s, ArrayViewMut1};
 use num::Float;
 use realfft::FftNum;
 
@@ -36,9 +36,9 @@ impl<F: Float + FftNum> ResamplerFixedOut<F> {
     /// Parameters are:
     /// - `sample_rate_input`: Input sample rate, must be > 0.
     /// - `sample_rate_output`: Output sample rate, must be > 0.
-    /// - `chunk_size_out`: length of output data in frames.
+    /// - `num_frames_out`: length of output data in frames.
     /// - `sub_chunks`: desired number of subchunks for processing, actual number may be different.
-    /// - `nbr_channels`: number of channels in input/output.
+    /// - `num_channels`: number of channels in input/output.
     pub fn new(
         sample_rate_input: usize,
         sample_rate_output: usize,
@@ -104,13 +104,18 @@ impl<F: Float + FftNum> Resampler<F> for ResamplerFixedOut<F> {
             .zip(self.overlaps.iter_mut())
         {
             for (in_chunk, out_chunk) in input_ch
+                .slice(s![..self.frames_needed])
                 .exact_chunks(self.fft_size_in)
                 .into_iter()
                 .zip(out_buf_ch[self.saved_frames..].chunks_mut(self.fft_size_out))
             {
                 self.resampler.resample_unit(
                     in_chunk,
-                    ArrayViewMut1::from_shape(self.fft_size_out, out_chunk).unwrap(),
+                    ArrayViewMut1::from_shape(
+                        self.fft_size_out,
+                        &mut out_chunk[..self.fft_size_out],
+                    )
+                    .unwrap(),
                     &mut overlap,
                 );
             }

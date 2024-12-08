@@ -35,9 +35,9 @@ impl<F: Float + FftNum> ResamplerFixedIn<F> {
     /// Parameters are:
     /// - `sample_rate_input`: Input sample rate, must be > 0.
     /// - `sample_rate_output`: Output sample rate, must be > 0.
-    /// - `chunk_size_in`: length of input data in frames.
+    /// - `num_frames_in`: length of input data in frames.
     /// - `sub_chunks`: desired number of subchunks for processing, actual number used may be different.
-    /// - `nbr_channels`: number of channels in input/output.
+    /// - `num_channels`: number of channels in input/output.
     pub fn new(
         sample_rate_input: usize,
         sample_rate_output: usize,
@@ -83,9 +83,9 @@ impl<F: Float + FftNum> Resampler<F> for ResamplerFixedIn<F> {
         output: &mut impl BlockWrite<F>,
     ) -> Result<(usize, usize), ()> {
         let next_saved_frames = self.saved_frames + self.num_frames_in;
-        let nbr_chunks_ready =
+        let num_chunks_ready =
             (next_saved_frames as f32 / self.fft_size_in as f32).floor() as usize;
-        let needed_len = nbr_chunks_ready * self.fft_size_out;
+        let needed_len = num_chunks_ready * self.fft_size_out;
 
         validate_buffers(
             input,
@@ -124,11 +124,12 @@ impl<F: Float + FftNum> Resampler<F> for ResamplerFixedIn<F> {
 
             for (in_chunk, out_chunk) in input_ch
                 .chunks(self.fft_size_in)
-                .take(nbr_chunks_ready)
+                .take(num_chunks_ready)
                 .zip(output_ch.exact_chunks_mut(self.fft_size_out))
             {
                 self.resampler.resample_unit(
-                    ArrayView1::from_shape(self.fft_size_in, in_chunk).unwrap(),
+                    ArrayView1::from_shape(self.fft_size_in, &in_chunk[..self.fft_size_in])
+                        .unwrap(),
                     out_chunk,
                     &mut overlap,
                 );
@@ -136,7 +137,7 @@ impl<F: Float + FftNum> Resampler<F> for ResamplerFixedIn<F> {
         }
 
         // Save extra frames for next round.
-        let frames_in_used = nbr_chunks_ready * self.fft_size_in;
+        let frames_in_used = num_chunks_ready * self.fft_size_in;
         let extra = self.saved_frames - frames_in_used;
 
         if self.saved_frames > frames_in_used {

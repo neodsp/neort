@@ -58,6 +58,7 @@ impl<F: Float + FftNum> Adapter<F> {
             self.process(block, |_| {});
         });
         self.reset();
+
         let delay = find_max_index(&ir);
         delay
     }
@@ -102,5 +103,27 @@ impl<F: Float + FftNum> Adapter<F> {
         self.resamplers.as_mut().map(|r| r.reset());
         self.input_rb.reset();
         self.output_rb.reset();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::audio_block::BlockRead;
+
+    use super::*;
+
+    #[test]
+    fn adapter() {
+        let mut adapter = Adapter::<f32>::default();
+
+        let delay = adapter.prepare(2, 48000, 512, 44100, 512);
+
+        dbg!(delay);
+
+        let mut block = Block::new(2, 512);
+
+        adapter.process(&mut block, |block| {
+            assert_eq!(block.num_frames(), 512);
+        });
     }
 }

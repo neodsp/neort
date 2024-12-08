@@ -7,11 +7,11 @@ use ringbuf::{
 
 use crate::audio_block::{BlockRead, BlockWrite};
 
-pub struct Ringbuffer<F: Float> {
+pub struct RingbufferLocal<F: Float> {
     ringbuffers: Vec<LocalRb<Heap<F>>>,
 }
 
-impl<F: Float> Default for Ringbuffer<F> {
+impl<F: Float> Default for RingbufferLocal<F> {
     fn default() -> Self {
         Self {
             ringbuffers: Vec::new(),
@@ -19,7 +19,7 @@ impl<F: Float> Default for Ringbuffer<F> {
     }
 }
 
-impl<F: Float> Ringbuffer<F> {
+impl<F: Float> RingbufferLocal<F> {
     pub fn prepare(&mut self, num_channels: u16, frame_capacity: usize, latency: usize) {
         assert!(latency < frame_capacity);
         self.ringbuffers = Vec::with_capacity(num_channels as usize);
@@ -90,8 +90,8 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_name() {
-        let mut rb = Ringbuffer::<f32>::default();
+    fn local_rb() {
+        let mut rb = RingbufferLocal::<f32>::default();
 
         rb.prepare(2, 1024, 0);
 

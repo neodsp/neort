@@ -5,7 +5,7 @@ use tools::{find_max_index, impulse_response};
 
 use crate::{
     audio_block::{Block, BlockWrite},
-    ringbuffer::Ringbuffer,
+    ringbuffer::RingbufferLocal,
 };
 
 mod resamplers;
@@ -13,8 +13,8 @@ mod tools;
 
 #[derive(Default)]
 pub struct Adapter<F: Float + FftNum> {
-    input_rb: Ringbuffer<F>,
-    output_rb: Ringbuffer<F>,
+    input_rb: RingbufferLocal<F>,
+    output_rb: RingbufferLocal<F>,
     resamplers: Option<Resamplers<F>>,
     process_block: Block<F>,
     user_num_frames: usize,

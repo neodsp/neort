@@ -57,6 +57,10 @@ impl<F: Float + FftNum> Resamplers<F> {
         self.input.input_frames_next()
     }
 
+    pub fn output_frames_next(&self) -> usize {
+        self.output.output_frames_next()
+    }
+
     pub fn reset(&mut self) {
         self.input.reset();
         self.output.reset();
@@ -65,10 +69,12 @@ impl<F: Float + FftNum> Resamplers<F> {
     }
 
     pub fn input_block(&mut self) -> &mut Block<F> {
+        // maybe create a new view that only has the size of the actual amount of output frames
         &mut self.input_block
     }
 
     pub fn output_block(&self) -> &Block<F> {
+        // maybe create a new view that only has the size of the actual amount of output frames
         &self.output_block
     }
 

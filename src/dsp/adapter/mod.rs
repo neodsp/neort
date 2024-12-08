@@ -51,8 +51,8 @@ impl<F: Float + FftNum> Adapter<F> {
 
         let max_frames = max_frames.max(system_max_num_frames).max(user_num_frames);
 
-        self.input_rb.prepare(num_channels, max_frames * 3, 0);
-        self.output_rb.prepare(num_channels, max_frames * 2, 0);
+        self.input_rb.prepare(num_channels, max_frames * 10, 0);
+        self.output_rb.prepare(num_channels, max_frames * 10, 0);
 
         let ir = impulse_response(10, system_max_num_frames, |block| {
             self.process(block, |_| {});
@@ -63,37 +63,46 @@ impl<F: Float + FftNum> Adapter<F> {
         delay
     }
 
-    fn process(
+    pub fn process(
         &mut self,
         block: &mut impl BlockWrite<F>,
         mut process_fn: impl FnMut(&mut Block<F>),
     ) {
-        self.input_rb.push_block(block);
+        assert!(self.input_rb.push_block(block, block.num_frames()));
 
         if let Some(resamplers) = self.resamplers.as_mut() {
             // Resampling necessary
             while self.input_rb.num_frames_stored() >= resamplers.input_frames_next() {
-                self.input_rb.pop_block(resamplers.input_block());
+                let num_input_frames = resamplers.input_frames_next();
+                assert!(self
+                    .input_rb
+                    .pop_block(resamplers.input_block(), num_input_frames));
                 resamplers.process_input(&mut self.process_block);
 
                 process_fn(&mut self.process_block);
 
+                let num_output_frames = resamplers.output_frames_next();
                 resamplers.process_output(&self.process_block);
-                self.output_rb.push_block(resamplers.output_block());
+                assert!(self
+                    .output_rb
+                    .push_block(resamplers.output_block(), num_output_frames));
             }
         } else {
             // Resampling unnecessary
             while self.input_rb.num_frames_stored() >= self.user_num_frames {
-                self.input_rb.pop_block(&mut self.process_block);
+                self.input_rb
+                    .pop_block(&mut self.process_block, self.user_num_frames);
 
                 process_fn(&mut self.process_block);
 
-                self.output_rb.push_block(&self.process_block);
+                assert!(self
+                    .output_rb
+                    .push_block(&self.process_block, self.user_num_frames));
             }
         }
 
         if self.output_rb.num_frames_stored() >= block.num_frames() {
-            self.output_rb.pop_block(block);
+            assert!(self.output_rb.pop_block(block, block.num_frames()));
         } else {
             block.clear();
         }

@@ -43,7 +43,7 @@ impl<F: Float> Ringbuffer<F> for RingbufferLocal<F> {
         let mut pushed_all = true;
         let num_frames = block.num_frames();
         for (rb, channel) in self.ringbuffers.iter_mut().zip(block.channels()) {
-            let num_pushed = rb.push_iter(channel.iter().take(num_frames).copied());
+            let num_pushed = rb.push_iter(channel.iter().copied());
             if num_pushed != num_frames {
                 pushed_all = false;
             }
@@ -61,7 +61,6 @@ impl<F: Float> Ringbuffer<F> for RingbufferLocal<F> {
             }
             channel
                 .iter_mut()
-                .take(num_frames)
                 .zip(rb.pop_iter())
                 .for_each(|(c, r)| *c = r);
         }
@@ -109,6 +108,10 @@ mod tests {
 
         assert_eq!(rb.num_frames_stored(), 512);
         assert_eq!(rb.num_frames_free(), 512);
+        assert_eq!(
+            rb.ringbuffers[0].occupied_len(),
+            rb.ringbuffers[1].occupied_len()
+        );
 
         block.channel_mut(0).fill(3.0);
         block.channel_mut(1).fill(4.0);

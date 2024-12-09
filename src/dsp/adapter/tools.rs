@@ -15,9 +15,10 @@ pub fn find_max_index<F: Float>(data: &[F]) -> usize {
 pub fn impulse_response<F: Float>(
     num_iterations: usize,
     num_frames: usize,
+    num_channels: u16,
     mut process_fn: impl FnMut(&mut Block<F>),
 ) -> Vec<F> {
-    let mut impulse = Block::<F>::new(1, num_frames);
+    let mut impulse = Block::<F>::new(num_channels, num_frames);
     impulse.channel_mut(0)[0] = F::one();
 
     let mut impulse_response = Vec::new();

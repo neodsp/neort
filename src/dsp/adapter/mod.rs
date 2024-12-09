@@ -54,7 +54,7 @@ impl<F: Float + FftNum> Adapter<F> {
         self.input_rb.prepare(num_channels, max_frames * 10, 0);
         self.output_rb.prepare(num_channels, max_frames * 10, 0);
 
-        let ir = impulse_response(10, system_max_num_frames, |block| {
+        let ir = impulse_response(10, system_max_num_frames, num_channels, |block| {
             self.process(block, |_| {});
         });
         self.reset();
@@ -68,6 +68,7 @@ impl<F: Float + FftNum> Adapter<F> {
         block: &mut impl BlockWrite<F>,
         mut process_fn: impl FnMut(&mut Block<F>),
     ) {
+        dbg!(block.num_channels());
         assert!(self.input_rb.push_block(block));
 
         if let Some(resamplers) = self.resamplers.as_mut() {
@@ -116,11 +117,11 @@ mod tests {
     fn adapter() {
         let mut adapter = Adapter::<f32>::default();
 
-        let delay = adapter.prepare(2, 48000, 512, 44100, 512);
+        let delay = adapter.prepare(2, 44100, 512, 48000, 512);
 
         dbg!(delay);
 
-        let mut block = Block::new(2, 512);
+        let mut block = Block::<f32>::new(2, 512);
 
         adapter.process(&mut block, |block| {
             assert_eq!(block.num_frames(), 512);

@@ -8,7 +8,7 @@ pub struct BlockView<'a, F: Float> {
     data: ArrayView2<'a, F>,
 }
 
-impl<'a, F: Float> Default for BlockView<'a, F> {
+impl<F: Float> Default for BlockView<'_, F> {
     fn default() -> Self {
         Self {
             data: ArrayView2::from_shape((0, 0), &[]).unwrap(),
@@ -61,7 +61,7 @@ impl<F: Float> BlockRead<F> for BlockView<'_, F> {
     #[rtsan::nonblocking]
     #[inline(always)]
     fn frame(&self, index: usize) -> ArrayView1<F> {
-        self.data.column(index as usize)
+        self.data.column(index)
     }
 
     #[rtsan::nonblocking]

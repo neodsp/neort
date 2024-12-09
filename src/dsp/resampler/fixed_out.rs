@@ -97,7 +97,7 @@ impl<F: Float + FftNum> Resampler<F> for ResamplerFixedOut<F> {
 
         debug_assert!(self.num_frames_out <= output.num_frames());
 
-        for ((input_ch, out_buf_ch), mut overlap) in input
+        for ((input_ch, out_buf_ch), overlap) in input
             .channels()
             .into_iter()
             .zip(self.output_buffers.iter_mut())
@@ -116,7 +116,7 @@ impl<F: Float + FftNum> Resampler<F> for ResamplerFixedOut<F> {
                         &mut out_chunk[..self.fft_size_out],
                     )
                     .unwrap(),
-                    &mut overlap,
+                    overlap,
                 );
             }
         }

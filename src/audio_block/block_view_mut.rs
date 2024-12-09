@@ -11,7 +11,7 @@ pub struct BlockViewMut<'a, F: Float> {
     data: ArrayViewMut2<'a, F>,
 }
 
-impl<'a, F: Float> Default for BlockViewMut<'a, F> {
+impl<F: Float> Default for BlockViewMut<'_, F> {
     fn default() -> Self {
         Self {
             data: ArrayViewMut2::from_shape((0, 0), &mut []).unwrap(),

@@ -114,13 +114,13 @@ impl<F: Float + FftNum> Resampler<F> for ResamplerFixedIn<F> {
 
         let out_frames = output.num_frames();
 
-        for ((input_ch, mut output_ch), mut overlap) in self
+        for ((input_ch, mut output_ch), overlap) in self
             .input_buffers
             .iter()
             .zip(output.channels_mut())
             .zip(self.overlaps.iter_mut())
         {
-            debug_assert!(needed_len <= out_frames as usize);
+            debug_assert!(needed_len <= out_frames);
 
             for (in_chunk, out_chunk) in input_ch
                 .chunks(self.fft_size_in)
@@ -131,7 +131,7 @@ impl<F: Float + FftNum> Resampler<F> for ResamplerFixedIn<F> {
                     ArrayView1::from_shape(self.fft_size_in, &in_chunk[..self.fft_size_in])
                         .unwrap(),
                     out_chunk,
-                    &mut overlap,
+                    overlap,
                 );
             }
         }

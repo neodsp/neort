@@ -73,19 +73,19 @@ impl<F: Float + FftNum> Resampler<F> for ResamplerFixedInOut<F> {
         validate_buffers(
             input,
             output,
-            self.num_channels as u16,
+            self.num_channels,
             self.num_frames_in,
             self.num_frames_out,
         )
         .unwrap();
 
-        for ((output, input), mut overlap) in output
+        for ((output, input), overlap) in output
             .channels_mut()
             .into_iter()
             .zip(input.channels())
             .zip(self.overlaps.iter_mut())
         {
-            self.resampler.resample_unit(input, output, &mut overlap);
+            self.resampler.resample_unit(input, output, overlap);
         }
 
         Ok((self.num_frames_in, self.num_frames_out))
@@ -100,7 +100,7 @@ impl<F: Float + FftNum> Resampler<F> for ResamplerFixedInOut<F> {
     }
 
     fn num_channels(&self) -> u16 {
-        self.num_channels as u16
+        self.num_channels
     }
 
     fn output_frames_max(&self) -> usize {

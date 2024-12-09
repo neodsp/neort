@@ -59,8 +59,8 @@ impl<F: Float + FftNum> Adapter<F> {
         });
         self.reset();
 
-        let delay = find_max_index(&ir);
-        delay
+        // return delay
+        find_max_index(&ir)
     }
 
     pub fn process(
@@ -100,7 +100,9 @@ impl<F: Float + FftNum> Adapter<F> {
     }
 
     pub fn reset(&mut self) {
-        self.resamplers.as_mut().map(|r| r.reset());
+        if let Some(r) = self.resamplers.as_mut() {
+            r.reset()
+        }
         self.input_rb.reset();
         self.output_rb.reset();
     }

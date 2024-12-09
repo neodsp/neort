@@ -75,7 +75,6 @@ impl<F: Float + FftNum> Resamplers<F> {
     }
 
     pub fn input_block(&mut self) -> BlockViewMut<F> {
-        println!("Getting input block with {} frames", self.in_frames_next);
         self.input_block.view_slice_mut(0..self.in_frames_next)
     }
 

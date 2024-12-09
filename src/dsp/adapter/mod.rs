@@ -68,7 +68,6 @@ impl<F: Float + FftNum> Adapter<F> {
         block: &mut impl BlockWrite<F>,
         mut process_fn: impl FnMut(&mut Block<F>),
     ) {
-        dbg!(block.num_channels());
         assert!(self.input_rb.push_block(block));
 
         if let Some(resamplers) = self.resamplers.as_mut() {

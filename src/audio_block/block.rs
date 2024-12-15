@@ -22,10 +22,10 @@ impl<F: Float> Default for Block<F> {
 
 impl<F: Float> Block<F> {
     #[blocking]
-    pub fn new(num_channels: u16, num_frames: usize) -> Self {
+    pub fn new(num_channels: u16, num_frames_max: usize) -> Self {
         Self {
-            data: Array2::zeros((num_channels as usize, num_frames)),
-            num_frames_visible: num_frames,
+            data: Array2::zeros((num_channels as usize, num_frames_max)),
+            num_frames_visible: num_frames_max,
         }
     }
 
@@ -46,13 +46,11 @@ impl<F: Float> Block<F> {
         self.data.ncols()
     }
 
-    // TODO: Test real-time-save "resizing"
     #[nonblocking]
-    pub fn set_num_frames_accesible(&mut self, num_frames: usize) {
+    pub fn set_num_frames(&mut self, num_frames: usize) {
         self.num_frames_visible = num_frames;
     }
 
-    // TODO: Test
     /// # Safety
     /// The function is safe to call as long as the ptr has `num_channels` elements
     /// and each of those pointers is pointing to `num_frames` values.
@@ -78,7 +76,6 @@ impl<F: Float> Block<F> {
         }
     }
 
-    // TODO: Test
     /// # Safety
     /// The function is safe to call as long as the ptr has `num_channels` elements
     /// and each of those pointers is pointing to `num_frames` values.
@@ -98,37 +95,31 @@ impl<F: Float> Block<F> {
         }
     }
 
-    // TODO: Test
     #[nonblocking]
     pub fn view(&self) -> BlockView<F> {
         BlockView::from_array_view(self.data.slice(s![.., ..self.num_frames_visible]))
     }
 
-    // TODO: Test
     #[nonblocking]
     pub fn view_mut(&mut self) -> BlockViewMut<F> {
         BlockViewMut::from_array_view(self.data.slice_mut(s![.., ..self.num_frames_visible]))
     }
 
-    // TODO: Test
     #[nonblocking]
     pub fn num_channels(&self) -> u16 {
         self.data.nrows() as u16
     }
 
-    // TODO: Test
     #[nonblocking]
     pub fn num_frames(&self) -> usize {
         self.num_frames_visible
     }
 
-    // TODO: Test
     #[nonblocking]
     pub fn num_frames_allocated(&self) -> usize {
         self.data.ncols()
     }
 
-    // TODO: Test
     /// Raw buffers are only for special purposes, reading should be done by taking a `BlocKView`.
     /// The reason for this is that the view will only give you the data that is meant to read from
     /// and not the whole allocated storage.
@@ -137,7 +128,6 @@ impl<F: Float> Block<F> {
         self.data.as_slice_memory_order().unwrap()
     }
 
-    // TODO: Test
     /// Raw buffers are only for special purposes, writing should be done by taking a `BlocKViewMut`.
     /// The reason for this is that the view will only give you the data that is meant to write to
     /// and not the whole allocated storage.
@@ -146,7 +136,6 @@ impl<F: Float> Block<F> {
         self.data.as_slice_memory_order_mut().unwrap()
     }
 
-    // TODO: Test
     #[nonblocking]
     pub fn clear(&mut self) {
         self.data.fill(F::zero());
@@ -155,22 +144,52 @@ impl<F: Float> Block<F> {
 
 #[cfg(test)]
 mod tests {
-    use ndarray::{array, aview2};
+    use ndarray::array;
 
     use super::*;
 
     #[test]
     fn block() {
-        let block = Block::<f32>::new(2, 3);
-        assert_eq!(
-            block.view(),
-            BlockView::from_array_view(aview2(&[[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]))
-        );
-
-        let block = Block::<f32>::from_array(array![[0.0, 0.1, 0.2], [1.0, 1.1, 1.2]]);
-
-        // Block Read
+        // Empty
+        let mut block = Block::<f32>::new(2, 3);
         assert_eq!(block.num_channels(), 2);
         assert_eq!(block.num_frames(), 3);
+        assert_eq!(block.num_frames_max(), 3);
+
+        // Change num frames
+        block.set_num_frames(2);
+        assert_eq!(block.num_frames(), 2);
+        assert_eq!(block.num_frames_allocated(), 3);
+
+        // From Array
+        let array = array![[0.0, 0.1, 0.2], [1.0, 1.1, 1.2]];
+        let block = Block::<f32>::from_array(array.clone());
+        assert_eq!(block.num_channels(), 2);
+        assert_eq!(block.num_frames(), 3);
+        assert_eq!(block.view(), BlockView::from_array_view(array.view()));
+
+        // Copy from pointer
+        let mut block = Block::<f32>::new(2, 5);
+        let data: [[f32; 3]; 2] = [[0.1, 0.2, 0.3], [1.1, 1.2, 1.3]];
+        let ptrs: Vec<*mut f32> = data.iter().map(|d| d.as_ptr() as *mut f32).collect();
+
+        unsafe {
+            block.copy_from_ptr(ptrs.as_ptr(), 2, 3);
+        }
+
+        assert_eq!(block.num_frames(), 3);
+        assert_eq!(block.num_frames_allocated(), 5);
+
+        let mut expected = array![[0.1, 0.2, 0.3], [1.1, 1.2, 1.3]];
+        assert_eq!(block.view(), BlockView::from_array_view(expected.view()));
+
+        assert_eq!(
+            block.view_mut(),
+            BlockViewMut::from_array_view(expected.view_mut())
+        );
+        assert_eq!(
+            block.raw_buffer_mut(),
+            &[0.1, 0.2, 0.3, 0.0, 0.0, 1.1, 1.2, 1.3, 0.0, 0.0]
+        );
     }
 }

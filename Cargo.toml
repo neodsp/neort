@@ -22,4 +22,4 @@ rtsan = { git = "https://github.com/realtime-sanitizer/rtsan-standalone-rs", bra
 rubato = "0.16.1"
 
 [features]
-sanitize = ["rtsan/sanitize"]
+rtsan = ["rtsan/enable"]

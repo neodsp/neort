@@ -39,8 +39,8 @@ impl<F: Float + FftNum> Resamplers<F> {
 
         let mut input_block = input.generate_input_block();
         let mut output_block = output.generate_output_block();
-        input_block.set_num_frames_accesible(input.input_frames_next());
-        output_block.set_num_frames_accesible(output.output_frames_next());
+        input_block.set_num_frames(input.input_frames_next());
+        output_block.set_num_frames(output.output_frames_next());
 
         Self {
             input_block,
@@ -54,13 +54,11 @@ impl<F: Float + FftNum> Resamplers<F> {
         self.input
             .process(&self.input_block.view(), output)
             .unwrap();
-        self.input_block
-            .set_num_frames_accesible(self.input_frames_next());
+        self.input_block.set_num_frames(self.input_frames_next());
     }
 
     pub fn process_output(&mut self, input: &impl BlockRead<F>) {
-        self.output_block
-            .set_num_frames_accesible(self.output_frames_next());
+        self.output_block.set_num_frames(self.output_frames_next());
         self.output
             .process(input, &mut self.output_block.view_mut())
             .unwrap();

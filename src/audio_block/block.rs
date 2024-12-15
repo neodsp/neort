@@ -97,7 +97,31 @@ impl<F: Float> Block<F> {
         }
     }
 
-    /// TODO: Test
+    /// TODO: Test (+ if it works if Block is in interleaved mode)
+    #[nonblocking]
+    pub fn copy_from_slices(&mut self, slice: &mut [&mut [F]]) {
+        assert_eq!(slice.len(), self.num_channels() as usize);
+        // writing can resize the number of frames
+        let num_frames = slice[0].len();
+        assert!(
+            num_frames <= self.num_frames_max(),
+            "Not enough memory allocated in block"
+        );
+        self.num_frames_visible = num_frames;
+
+        for (channel_idx, channel_data) in slice.iter().enumerate() {
+            assert_eq!(
+                channel_data.len(),
+                num_frames,
+                "All frames must be equally long"
+            );
+
+            let mut channel_view = self.data.slice_mut(ndarray::s![channel_idx, ..num_frames]);
+            channel_view.assign(&ArrayView1::from_shape(num_frames, channel_data).unwrap());
+        }
+    }
+
+    /// TODO: Test (+ if it works if Block is in interleaved mode)
     #[nonblocking]
     pub fn copy_into_slices(&self, slice: &mut [&mut [F]]) {
         assert_eq!(slice.len(), self.num_channels() as usize);

@@ -91,7 +91,31 @@ impl<F: Float> Block<F> {
         for (channel_idx, &channel_ptr) in raw_slices.iter().enumerate() {
             let channel_data = self.data.slice(ndarray::s![channel_idx, ..num_frames]);
             let output_slice = std::slice::from_raw_parts_mut(channel_ptr, num_frames);
-            output_slice.copy_from_slice(channel_data.as_slice().unwrap());
+            for (out, inp) in output_slice.iter_mut().zip(channel_data.iter()) {
+                *out = *inp;
+            }
+        }
+    }
+
+    /// TODO: Test
+    #[nonblocking]
+    pub fn copy_into_slices(&self, slice: &mut [&mut [F]]) {
+        assert_eq!(slice.len(), self.num_channels() as usize);
+        // writing can resize the number of frames
+        let num_frames = slice[0].len();
+        assert_eq!(num_frames, self.num_frames_max());
+
+        for (channel_idx, output_slice) in slice.iter_mut().enumerate() {
+            assert_eq!(
+                output_slice.len(),
+                num_frames,
+                "All frames must be equally long"
+            );
+
+            let channel_view = self.data.slice(ndarray::s![channel_idx, ..num_frames]);
+            for (out, inp) in output_slice.iter_mut().zip(channel_view.iter()) {
+                *out = *inp;
+            }
         }
     }
 

@@ -9,6 +9,7 @@ use num::Float;
 pub use block::Block;
 pub use block_view::BlockView;
 pub use block_view_mut::BlockViewMut;
+use rtsan::{blocking, nonblocking};
 
 mod block;
 mod block_view;
@@ -24,19 +25,19 @@ pub enum BufferLayout {
 /// All functions inside of this trait are real-time safe
 /// and meant to be called inside of your process function.
 pub trait BlockRead<F: Float> {
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn num_channels(&self) -> u16 {
         self.data().nrows() as u16
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn num_frames(&self) -> usize {
         self.data().ncols()
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn layout(&self) -> BufferLayout {
         if self.data().is_standard_layout() {
@@ -45,7 +46,7 @@ pub trait BlockRead<F: Float> {
             BufferLayout::Interleaved
         }
     }
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn sample(&self, ch: u16, frame: usize) -> F {
         self.data()[[ch as usize, frame]]
@@ -63,6 +64,11 @@ pub trait BlockRead<F: Float> {
     /// This can return sequential or interleaved data.
     /// The layout can be checked with [`BlockView::layout`] or [`BlockViewMut::layout`].
     fn raw_buffer(&self) -> &[F];
+
+    #[blocking]
+    fn to_owned_block(&self) -> Block<F> {
+        Block::from_array(self.data().as_standard_layout().to_owned())
+    }
 }
 
 /// Trait that is necessary to write to an audio block.

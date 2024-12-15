@@ -31,6 +31,7 @@ impl<F: Float> Block<F> {
 
     #[blocking]
     pub fn from_array(array: Array2<F>) -> Self {
+        assert!(array.is_standard_layout());
         Self {
             num_frames_visible: array.ncols(),
             data: array,
@@ -239,5 +240,7 @@ mod tests {
             block.raw_buffer_mut(),
             &[0.1, 0.2, 0.3, 0.0, 0.0, 1.1, 1.2, 1.3, 0.0, 0.0]
         );
+
+        // Interleaved
     }
 }

@@ -1,8 +1,8 @@
 use ndarray::{iter::Lanes, s, ArrayView1, ArrayView2, Dim, ShapeBuilder};
 use num::Float;
-use rtsan::{blocking, nonblocking};
+use rtsan::nonblocking;
 
-use super::{Block, BlockRead, BufferLayout};
+use super::{BlockRead, BufferLayout};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct BlockView<'a, F: Float> {
@@ -53,15 +53,6 @@ impl<'a, F: Float> BlockView<'a, F> {
     pub unsafe fn from_ptr(ptr: *const F, num_channels: u16, num_frames: usize) -> Self {
         Self {
             data: ArrayView2::from_shape_ptr((num_channels as usize, num_frames), ptr),
-        }
-    }
-
-    #[blocking]
-    pub fn to_owned(&self, force_sequential_layout: bool) -> Block<F> {
-        if force_sequential_layout {
-            Block::from_array(self.data.as_standard_layout().to_owned())
-        } else {
-            Block::from_array(self.data.to_owned())
         }
     }
 }
@@ -120,6 +111,8 @@ impl<F: Float> BlockRead<F> for BlockView<'_, F> {
 mod tests {
     use ndarray::{array, aview1, aview2};
 
+    use crate::audio_block::Block;
+
     use super::*;
 
     #[test]
@@ -132,12 +125,12 @@ mod tests {
         );
 
         assert_eq!(
-            block.to_owned(false),
+            block.to_owned_block(),
             Block::from_array(array![[0.0, 0.1, 0.2], [1.0, 1.1, 1.2]])
         );
 
         assert_eq!(
-            block.to_owned(false).raw_buffer(),
+            block.to_owned_block().raw_buffer(),
             &[0.0, 0.1, 0.2, 1.0, 1.1, 1.2]
         );
 
@@ -194,17 +187,12 @@ mod tests {
         );
 
         assert_eq!(
-            block.to_owned(false),
+            block.to_owned_block(),
             Block::from_array(array![[0.0, 0.1, 0.2], [1.0, 1.1, 1.2]])
         );
 
         assert_eq!(
-            block.to_owned(false).raw_buffer(),
-            &[0.0, 1.0, 0.1, 1.1, 0.2, 1.2]
-        );
-
-        assert_eq!(
-            block.to_owned(true).raw_buffer(),
+            block.to_owned_block().raw_buffer(),
             &[0.0, 0.1, 0.2, 1.0, 1.1, 1.2]
         );
 

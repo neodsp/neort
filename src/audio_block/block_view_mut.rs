@@ -3,9 +3,9 @@ use ndarray::{
     s, ArrayView1, ArrayViewMut1, ArrayViewMut2, Dim, ShapeBuilder,
 };
 use num::Float;
-use rtsan::{blocking, nonblocking};
+use rtsan::nonblocking;
 
-use super::{block_view::BlockView, Block, BlockRead, BlockWrite, BufferLayout};
+use super::{block_view::BlockView, BlockRead, BlockWrite, BufferLayout};
 
 #[derive(Debug, PartialEq)]
 pub struct BlockViewMut<'a, F: Float> {
@@ -54,15 +54,6 @@ impl<'a, F: Float> BlockViewMut<'a, F> {
     pub unsafe fn from_ptr(ptr: *mut F, num_channels: u16, num_frames: usize) -> Self {
         Self {
             data: ArrayViewMut2::from_shape_ptr((num_channels as usize, num_frames), ptr),
-        }
-    }
-
-    #[blocking]
-    pub fn to_owned(&self, force_sequential_layout: bool) -> Block<F> {
-        if force_sequential_layout {
-            Block::from_array(self.data.as_standard_layout().to_owned())
-        } else {
-            Block::from_array(self.data.to_owned())
         }
     }
 }
@@ -177,6 +168,8 @@ impl<F: Float> BlockWrite<F> for BlockViewMut<'_, F> {
 mod tests {
     use ndarray::{array, aview1, aview2};
 
+    use crate::audio_block::Block;
+
     use super::*;
 
     // TODO: Mut access tests missing
@@ -186,12 +179,12 @@ mod tests {
         let block = BlockViewMut::from_buffer(&mut buffer, 2, 3, BufferLayout::Sequential);
 
         assert_eq!(
-            block.to_owned(false),
+            block.to_owned_block(),
             Block::from_array(array![[0.0, 0.1, 0.2], [1.0, 1.1, 1.2]])
         );
 
         assert_eq!(
-            block.to_owned(false).raw_buffer(),
+            block.to_owned_block().raw_buffer(),
             &[0.0, 0.1, 0.2, 1.0, 1.1, 1.2]
         );
 
@@ -247,17 +240,12 @@ mod tests {
         assert_eq!(block.sample(1, 2), 1.2);
 
         assert_eq!(
-            block.to_owned(false),
+            block.to_owned_block(),
             Block::from_array(array![[0.0, 0.1, 0.2], [1.0, 1.1, 1.2]])
         );
 
         assert_eq!(
-            block.to_owned(false).raw_buffer(),
-            &[0.0, 1.0, 0.1, 1.1, 0.2, 1.2]
-        );
-
-        assert_eq!(
-            block.to_owned(true).raw_buffer(),
+            block.to_owned_block().raw_buffer(),
             &[0.0, 0.1, 0.2, 1.0, 1.1, 1.2]
         );
 

@@ -9,7 +9,7 @@ pub struct AudioSettings {
     pub max_num_frames: u32,
 }
 
-pub trait Processor<F: Float> {
+pub trait Processor<F: Float + 'static> {
     type Result;
     type Parameter;
 

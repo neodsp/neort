@@ -31,7 +31,7 @@ impl<F: Float> Block<F> {
     }
 }
 
-impl<F: Float> BlockRead<F> for Block<F> {
+impl<F: Float + 'static> BlockRead<F> for Block<F> {
     #[rtsan::nonblocking]
     #[inline(always)]
     fn channel(&self, index: u16) -> ArrayView1<F> {
@@ -46,8 +46,8 @@ impl<F: Float> BlockRead<F> for Block<F> {
 
     #[rtsan::nonblocking]
     #[inline(always)]
-    fn channels(&self) -> Lanes<F, Dim<[usize; 1]>> {
-        self.data.rows()
+    fn channels(&self) -> impl Iterator<Item = ArrayView1<F>> {
+        self.data.rows().into_iter()
     }
 
     #[rtsan::nonblocking]
@@ -81,7 +81,7 @@ impl<F: Float> BlockRead<F> for Block<F> {
     }
 }
 
-impl<F: Float> BlockWrite<F> for Block<F> {
+impl<F: Float + 'static> BlockWrite<F> for Block<F> {
     #[rtsan::nonblocking]
     #[inline(always)]
     fn sample_mut(&mut self, ch: u16, frame: usize) -> &mut F {
@@ -102,8 +102,8 @@ impl<F: Float> BlockWrite<F> for Block<F> {
 
     #[rtsan::nonblocking]
     #[inline(always)]
-    fn channels_mut(&mut self) -> LanesMut<F, Dim<[usize; 1]>> {
-        self.data.rows_mut()
+    fn channels_mut(&mut self) -> impl Iterator<Item = ArrayViewMut1<F>> {
+        self.data.rows_mut().into_iter()
     }
 
     #[rtsan::nonblocking]
@@ -172,7 +172,7 @@ mod tests {
         assert_eq!(block.frame(1), aview1(&[0.1, 1.1]));
         assert_eq!(block.frame(2), aview1(&[0.2, 1.2]));
         // fn channels(&self) -> Lanes<Sample, Dim<[usize; 1]>>;
-        for (ch, channel) in block.channels().into_iter().enumerate() {
+        for (ch, channel) in block.channels().enumerate() {
             if ch == 0 {
                 assert_eq!(channel, aview1(&[0.0, 0.1, 0.2]));
             } else if ch == 1 {

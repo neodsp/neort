@@ -11,6 +11,7 @@ pub use block_view::BlockView;
 pub use block_view_mut::BlockViewMut;
 
 mod block;
+mod block_dynamic;
 mod block_view;
 mod block_view_mut;
 
@@ -23,7 +24,7 @@ pub enum BufferLayout {
 /// Trait that is necessary to read from an audio block.
 /// All functions inside of this trait are real-time safe
 /// and meant to be called inside of your process function.
-pub trait BlockRead<F: Float> {
+pub trait BlockRead<F: Float + 'static> {
     #[rtsan::nonblocking]
     #[inline(always)]
     fn num_channels(&self) -> u16 {
@@ -53,7 +54,7 @@ pub trait BlockRead<F: Float> {
 
     fn channel(&self, index: u16) -> ArrayView1<F>;
     fn frame(&self, index: usize) -> ArrayView1<F>;
-    fn channels(&self) -> Lanes<F, Dim<[usize; 1]>>;
+    fn channels(&self) -> impl Iterator<Item = ArrayView1<F>>;
     fn frames(&self) -> Lanes<F, Dim<[usize; 1]>>;
     fn view(&self) -> BlockView<F>;
     // TODO: write test
@@ -68,11 +69,11 @@ pub trait BlockRead<F: Float> {
 /// Trait that is necessary to write to an audio block.
 /// All functions inside of this trait are real-time safe
 /// and meant to be called inside of your process function.
-pub trait BlockWrite<F: Float>: BlockRead<F> {
+pub trait BlockWrite<F: Float + 'static>: BlockRead<F> {
     fn sample_mut(&mut self, ch: u16, frame: usize) -> &mut F;
     fn channel_mut(&mut self, index: u16) -> ArrayViewMut1<F>;
     fn frame_mut(&mut self, index: usize) -> ArrayViewMut1<F>;
-    fn channels_mut(&mut self) -> LanesMut<F, Dim<[usize; 1]>>;
+    fn channels_mut(&mut self) -> impl Iterator<Item = ArrayViewMut1<F>>;
     fn frames_mut(&mut self) -> LanesMut<F, Dim<[usize; 1]>>;
 
     fn view_mut(&mut self) -> BlockViewMut<F>;

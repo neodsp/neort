@@ -21,7 +21,7 @@ impl<F: Float> Default for RingbufferLocal<F> {
     }
 }
 
-impl<F: Float> Ringbuffer<F> for RingbufferLocal<F> {
+impl<F: Float + 'static> Ringbuffer<F> for RingbufferLocal<F> {
     fn prepare(&mut self, num_channels: u16, frame_capacity: usize, latency: usize) {
         assert!(latency < frame_capacity);
         self.ringbuffers = Vec::with_capacity(num_channels as usize);

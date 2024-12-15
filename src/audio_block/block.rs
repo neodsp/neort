@@ -31,10 +31,9 @@ impl<F: Float> Block<F> {
 
     #[blocking]
     pub fn from_array(array: Array2<F>) -> Self {
-        assert!(array.is_standard_layout());
         Self {
             num_frames_visible: array.ncols(),
-            data: array,
+            data: array.as_standard_layout().to_owned(),
         }
     }
 

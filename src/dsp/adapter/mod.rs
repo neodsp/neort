@@ -55,7 +55,7 @@ impl<F: Float + FftNum> Adapter<F> {
         self.output_rb.prepare(num_channels, max_frames * 10, 0);
 
         let ir = impulse_response(10, system_max_num_frames, num_channels, |block| {
-            self.process(block, |_| {});
+            self.process(&mut block.view_mut(), |_| {});
         });
         self.reset();
 
@@ -74,21 +74,21 @@ impl<F: Float + FftNum> Adapter<F> {
             // Resampling necessary
             while self.input_rb.num_frames_stored() >= resamplers.input_frames_next() {
                 assert!(self.input_rb.pop_block(&mut resamplers.input_block()));
-                resamplers.process_input(&mut self.process_block);
+                resamplers.process_input(&mut self.process_block.view_mut());
 
                 process_fn(&mut self.process_block);
 
-                resamplers.process_output(&self.process_block);
+                resamplers.process_output(&self.process_block.view());
                 assert!(self.output_rb.push_block(&resamplers.output_block()));
             }
         } else {
             // Resampling unnecessary
             while self.input_rb.num_frames_stored() >= self.user_num_frames {
-                self.input_rb.pop_block(&mut self.process_block);
+                self.input_rb.pop_block(&mut self.process_block.view_mut());
 
                 process_fn(&mut self.process_block);
 
-                assert!(self.output_rb.push_block(&self.process_block));
+                assert!(self.output_rb.push_block(&self.process_block.view()));
             }
         }
 
@@ -110,7 +110,6 @@ impl<F: Float + FftNum> Adapter<F> {
 
 #[cfg(test)]
 mod tests {
-    use crate::audio_block::BlockRead;
 
     use super::*;
 
@@ -124,7 +123,7 @@ mod tests {
 
         let mut block = Block::<f32>::new(2, 512);
 
-        adapter.process(&mut block, |block| {
+        adapter.process(&mut block.view_mut(), |block| {
             assert_eq!(block.num_frames(), 512);
         });
     }

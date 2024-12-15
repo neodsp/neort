@@ -70,9 +70,9 @@ mod tests {
         gain.set_parameter(GainParameter::Gain { ch: 0, gain: 2.0 });
         gain.set_parameter(GainParameter::Gain { ch: 1, gain: 4.0 });
 
-        gain.process(&mut block);
+        gain.process(&mut block.view_mut());
 
-        assert_eq!(block.channel(0), aview1(&[2.0, 2.0, 2.0]));
-        assert_eq!(block.channel(1), aview1(&[4.0, 4.0, 4.0]));
+        assert_eq!(block.view().channel(0), aview1(&[2.0, 2.0, 2.0]));
+        assert_eq!(block.view().channel(1), aview1(&[4.0, 4.0, 4.0]));
     }
 }

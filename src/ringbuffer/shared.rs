@@ -99,40 +99,40 @@ mod tests {
 
         let mut block = Block::new(2, 512);
 
-        block.channel_mut(0).fill(1.0);
-        block.channel_mut(1).fill(2.0);
+        block.view_mut().channel_mut(0).fill(1.0);
+        block.view_mut().channel_mut(1).fill(2.0);
 
         assert_eq!(rb.num_frames_stored(), 0);
         assert_eq!(rb.num_frames_free(), 1024);
 
-        rb.push_block(&block);
+        rb.push_block(&block.view());
 
         assert_eq!(rb.num_frames_stored(), 512);
         assert_eq!(rb.num_frames_free(), 512);
 
-        block.channel_mut(0).fill(3.0);
-        block.channel_mut(1).fill(4.0);
+        block.view_mut().channel_mut(0).fill(3.0);
+        block.view_mut().channel_mut(1).fill(4.0);
 
-        rb.push_block(&block);
+        rb.push_block(&block.view());
         assert_eq!(rb.num_frames_stored(), 1024);
         assert_eq!(rb.num_frames_free(), 0);
 
         let mut out_block = Block::new(2, 512);
 
-        let popped_all = rb.pop_block(&mut out_block);
+        let popped_all = rb.pop_block(&mut out_block.view_mut());
         assert!(popped_all);
         assert_eq!(rb.num_frames_stored(), 512);
         assert_eq!(rb.num_frames_free(), 512);
 
-        assert_eq!(out_block.channel(0), aview1(&[1.0; 512]));
-        assert_eq!(out_block.channel(1), aview1(&[2.0; 512]));
+        assert_eq!(out_block.view().channel(0), aview1(&[1.0; 512]));
+        assert_eq!(out_block.view().channel(1), aview1(&[2.0; 512]));
 
-        let pushed_all = rb.pop_block(&mut out_block);
+        let pushed_all = rb.pop_block(&mut out_block.view_mut());
         assert!(pushed_all);
         assert_eq!(rb.num_frames_stored(), 0);
         assert_eq!(rb.num_frames_free(), 1024);
 
-        assert_eq!(out_block.channel(0), aview1(&[3.0; 512]));
-        assert_eq!(out_block.channel(1), aview1(&[4.0; 512]));
+        assert_eq!(out_block.view().channel(0), aview1(&[3.0; 512]));
+        assert_eq!(out_block.view().channel(1), aview1(&[4.0; 512]));
     }
 }

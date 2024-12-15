@@ -1,5 +1,6 @@
 use ndarray::{iter::Lanes, s, ArrayView1, ArrayView2, Dim, ShapeBuilder};
 use num::Float;
+use rtsan::{blocking, nonblocking};
 
 use super::{Block, BlockRead, BufferLayout};
 
@@ -9,6 +10,7 @@ pub struct BlockView<'a, F: Float> {
 }
 
 impl<F: Float> Default for BlockView<'_, F> {
+    #[nonblocking]
     fn default() -> Self {
         Self {
             data: ArrayView2::from_shape((0, 0), &[]).unwrap(),
@@ -17,7 +19,7 @@ impl<F: Float> Default for BlockView<'_, F> {
 }
 
 impl<'a, F: Float> BlockView<'a, F> {
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     pub fn from_buffer(
         buffer: &'a [F],
@@ -36,12 +38,25 @@ impl<'a, F: Float> BlockView<'a, F> {
         Self { data }
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     pub fn from_array_view(view: ArrayView2<'a, F>) -> Self {
         Self { data: view }
     }
 
+    // TODO: Test
+    /// # Safety
+    /// The buffer the pointer points to must be at least `num_channels` * `num_frames`
+    /// elements long. Otherwise this is undefined behavior.
+    #[nonblocking]
+    #[inline(always)]
+    pub unsafe fn from_ptr(ptr: *const F, num_channels: u16, num_frames: usize) -> Self {
+        Self {
+            data: ArrayView2::from_shape_ptr((num_channels as usize, num_frames), ptr),
+        }
+    }
+
+    #[blocking]
     pub fn to_owned(&self, force_sequential_layout: bool) -> Block<F> {
         if force_sequential_layout {
             Block::from_array(self.data.as_standard_layout().to_owned())
@@ -52,49 +67,49 @@ impl<'a, F: Float> BlockView<'a, F> {
 }
 
 impl<F: Float> BlockRead<F> for BlockView<'_, F> {
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn channel(&self, index: u16) -> ArrayView1<F> {
         self.data.row(index as usize)
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn frame(&self, index: usize) -> ArrayView1<F> {
         self.data.column(index)
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn channels(&self) -> Lanes<F, Dim<[usize; 1]>> {
         self.data.rows()
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn frames(&self) -> Lanes<F, Dim<[usize; 1]>> {
         self.data.columns()
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn view(&self) -> BlockView<F> {
         BlockView::from_array_view(self.data.view())
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn view_slice(&self, range: std::ops::Range<usize>) -> BlockView<F> {
         BlockView::from_array_view(self.data.slice(s![.., range]))
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn raw_buffer(&self) -> &[F] {
         self.data.as_slice_memory_order().unwrap()
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn data(&self) -> ndarray::ArrayView2<F> {
         self.data.view()

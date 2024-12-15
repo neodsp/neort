@@ -19,19 +19,19 @@ pub fn impulse_response<F: Float>(
     mut process_fn: impl FnMut(&mut Block<F>),
 ) -> Vec<F> {
     let mut impulse = Block::<F>::new(num_channels, num_frames);
-    impulse.channel_mut(0)[0] = F::one();
+    impulse.view_mut().channel_mut(0)[0] = F::one();
 
     let mut impulse_response = Vec::new();
     process_fn(&mut impulse);
 
-    for sample in impulse.channel(0).iter() {
+    for sample in impulse.view().channel(0).iter() {
         impulse_response.push(*sample);
     }
 
     for _ in 1..num_iterations {
         impulse.clear();
         process_fn(&mut impulse);
-        for sample in impulse.channel(0).iter() {
+        for sample in impulse.view().channel(0).iter() {
             impulse_response.push(*sample);
         }
     }

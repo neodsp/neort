@@ -205,12 +205,16 @@ mod tests {
         let mut resampler = ResamplerFixedOut::<f32>::new(44100, 48000, 1024, 1, 2).unwrap();
 
         let mut input = resampler.generate_input_block();
-        input.channel_mut(0)[0] = 1.0;
-        input.channel_mut(1)[2] = 1.0;
+        input.view_mut().channel_mut(0)[0] = 1.0;
+        input.view_mut().channel_mut(1)[2] = 1.0;
         let mut output = resampler.generate_output_block();
 
-        resampler.process(&input, &mut output).unwrap();
-        resampler.process(&input, &mut output).unwrap();
+        resampler
+            .process(&input.view(), &mut output.view_mut())
+            .unwrap();
+        resampler
+            .process(&input.view(), &mut output.view_mut())
+            .unwrap();
 
         // dbg!(&output);
 
@@ -222,7 +226,7 @@ mod tests {
         let _ = rub.process(&rub_in, None).unwrap();
         let rub_output = rub.process(&rub_in, None).unwrap();
 
-        assert_eq!(output.channel(0).to_vec(), rub_output[0]);
-        assert_eq!(output.channel(1).to_vec(), rub_output[1]);
+        assert_eq!(output.view().channel(0).to_vec(), rub_output[0]);
+        assert_eq!(output.view().channel(1).to_vec(), rub_output[1]);
     }
 }

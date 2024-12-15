@@ -1,147 +1,161 @@
-use ndarray::{
-    iter::{Lanes, LanesMut},
-    s, Array2, ArrayView1, ArrayViewMut1, Dim,
-};
+use ndarray::{s, Array2, ArrayView1};
 use num::Float;
+use rtsan::{blocking, nonblocking};
 
-use super::{block_view::BlockView, block_view_mut::BlockViewMut, BlockRead, BlockWrite};
+use super::{block_view::BlockView, BlockViewMut};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct Block<F: Float> {
     data: Array2<F>,
+    num_frames_visible: usize,
 }
 
 impl<F: Float> Default for Block<F> {
+    #[blocking]
     fn default() -> Self {
         Self {
             data: Array2::zeros((0, 0)),
+            num_frames_visible: 0,
         }
     }
 }
 
 impl<F: Float> Block<F> {
+    #[blocking]
     pub fn new(num_channels: u16, num_frames: usize) -> Self {
         Self {
             data: Array2::zeros((num_channels as usize, num_frames)),
+            num_frames_visible: num_frames,
         }
     }
 
+    #[blocking]
     pub fn from_array(array: Array2<F>) -> Self {
-        Self { data: array }
-    }
-}
-
-impl<F: Float> BlockRead<F> for Block<F> {
-    #[rtsan::nonblocking]
-    #[inline(always)]
-    fn channel(&self, index: u16) -> ArrayView1<F> {
-        self.data.row(index as usize)
+        Self {
+            num_frames_visible: array.ncols(),
+            data: array,
+        }
     }
 
-    #[rtsan::nonblocking]
-    #[inline(always)]
-    fn frame(&self, index: usize) -> ArrayView1<F> {
-        self.data.column(index)
+    /// This returns the maximum amount of samples that can be stored
+    /// The owned block can operate on less samples, than available
+    /// and [ `num_frames` ] just returns the number of frames that
+    /// should be accessed.
+    #[nonblocking]
+    pub fn num_frames_max(&self) -> usize {
+        self.data.ncols()
     }
 
-    #[rtsan::nonblocking]
-    #[inline(always)]
-    fn channels(&self) -> Lanes<F, Dim<[usize; 1]>> {
-        self.data.rows()
+    // TODO: Test real-time-save "resizing"
+    #[nonblocking]
+    pub fn set_num_frames_accesible(&mut self, num_frames: usize) {
+        self.num_frames_visible = num_frames;
     }
 
-    #[rtsan::nonblocking]
-    #[inline(always)]
-    fn frames(&self) -> Lanes<F, Dim<[usize; 1]>> {
-        self.data.columns()
+    // TODO: Test
+    /// # Safety
+    /// The function is safe to call as long as the ptr has `num_channels` elements
+    /// and each of those pointers is pointing to `num_frames` values.
+    /// It is undefined behaviour if this is not the case!
+    #[nonblocking]
+    pub unsafe fn copy_from_ptr(
+        &mut self,
+        ptr: *const *mut F,
+        num_channels: u16,
+        num_frames: usize,
+    ) {
+        assert_eq!(num_channels, self.num_channels());
+        // writing can resize the number of frames
+        assert!(num_frames <= self.num_frames_max());
+        self.num_frames_visible = num_frames;
+
+        let raw_slices = std::slice::from_raw_parts(ptr, num_channels as usize);
+
+        for (channel_idx, &channel_ptr) in raw_slices.iter().enumerate() {
+            let channel_data = std::slice::from_raw_parts(channel_ptr, num_frames);
+            let mut channel_view = self.data.slice_mut(ndarray::s![channel_idx, ..num_frames]);
+            channel_view.assign(&ArrayView1::from_shape(num_frames, channel_data).unwrap());
+        }
     }
 
-    #[rtsan::nonblocking]
-    #[inline(always)]
-    fn view(&self) -> BlockView<F> {
-        BlockView::from_array_view(self.data.view())
+    // TODO: Test
+    /// # Safety
+    /// The function is safe to call as long as the ptr has `num_channels` elements
+    /// and each of those pointers is pointing to `num_frames` values.
+    /// It is undefined behaviour if this is not the case!
+    #[nonblocking]
+    pub unsafe fn copy_into_ptr(&self, ptr: *const *mut F, num_channels: u16, num_frames: usize) {
+        assert_eq!(num_channels, self.num_channels());
+        // reading should be done with the the same number of frames that were stored last
+        assert_eq!(num_frames, self.num_frames());
+
+        let raw_slices = std::slice::from_raw_parts(ptr, num_channels as usize);
+
+        for (channel_idx, &channel_ptr) in raw_slices.iter().enumerate() {
+            let channel_data = self.data.slice(ndarray::s![channel_idx, ..num_frames]);
+            let output_slice = std::slice::from_raw_parts_mut(channel_ptr, num_frames);
+            output_slice.copy_from_slice(channel_data.as_slice().unwrap());
+        }
     }
 
-    #[rtsan::nonblocking]
-    #[inline(always)]
-    fn view_slice(&self, range: std::ops::Range<usize>) -> BlockView<F> {
-        BlockView::from_array_view(self.data.slice(s![.., range]))
+    // TODO: Test
+    #[nonblocking]
+    pub fn view(&self) -> BlockView<F> {
+        BlockView::from_array_view(self.data.slice(s![.., ..self.num_frames_visible]))
     }
 
-    #[rtsan::nonblocking]
-    #[inline(always)]
-    fn raw_buffer(&self) -> &[F] {
+    // TODO: Test
+    #[nonblocking]
+    pub fn view_mut(&mut self) -> BlockViewMut<F> {
+        BlockViewMut::from_array_view(self.data.slice_mut(s![.., ..self.num_frames_visible]))
+    }
+
+    // TODO: Test
+    #[nonblocking]
+    pub fn num_channels(&self) -> u16 {
+        self.data.nrows() as u16
+    }
+
+    // TODO: Test
+    #[nonblocking]
+    pub fn num_frames(&self) -> usize {
+        self.num_frames_visible
+    }
+
+    // TODO: Test
+    #[nonblocking]
+    pub fn num_frames_allocated(&self) -> usize {
+        self.data.ncols()
+    }
+
+    // TODO: Test
+    /// Raw buffers are only for special purposes, reading should be done by taking a `BlocKView`.
+    /// The reason for this is that the view will only give you the data that is meant to read from
+    /// and not the whole allocated storage.
+    #[nonblocking]
+    pub fn raw_buffer(&self) -> &[F] {
         self.data.as_slice_memory_order().unwrap()
     }
 
-    #[rtsan::nonblocking]
-    #[inline(always)]
-    fn data(&self) -> ndarray::ArrayView2<F> {
-        self.data.view()
-    }
-}
-
-impl<F: Float> BlockWrite<F> for Block<F> {
-    #[rtsan::nonblocking]
-    #[inline(always)]
-    fn sample_mut(&mut self, ch: u16, frame: usize) -> &mut F {
-        &mut self.data[[ch as usize, frame]]
-    }
-
-    #[rtsan::nonblocking]
-    #[inline(always)]
-    fn channel_mut(&mut self, index: u16) -> ArrayViewMut1<F> {
-        self.data.row_mut(index as usize)
-    }
-
-    #[rtsan::nonblocking]
-    #[inline(always)]
-    fn frame_mut(&mut self, index: usize) -> ArrayViewMut1<F> {
-        self.data.column_mut(index)
-    }
-
-    #[rtsan::nonblocking]
-    #[inline(always)]
-    fn channels_mut(&mut self) -> LanesMut<F, Dim<[usize; 1]>> {
-        self.data.rows_mut()
-    }
-
-    #[rtsan::nonblocking]
-    #[inline(always)]
-    fn frames_mut(&mut self) -> LanesMut<F, Dim<[usize; 1]>> {
-        self.data.columns_mut()
-    }
-
-    #[rtsan::nonblocking]
-    #[inline(always)]
-    fn raw_buffer_mut(&mut self) -> &mut [F] {
+    // TODO: Test
+    /// Raw buffers are only for special purposes, writing should be done by taking a `BlocKViewMut`.
+    /// The reason for this is that the view will only give you the data that is meant to write to
+    /// and not the whole allocated storage.
+    #[nonblocking]
+    pub fn raw_buffer_mut(&mut self) -> &mut [F] {
         self.data.as_slice_memory_order_mut().unwrap()
     }
 
-    #[rtsan::nonblocking]
-    #[inline(always)]
-    fn view_mut(&mut self) -> BlockViewMut<F> {
-        BlockViewMut::from_array_view(self.data.view_mut())
-    }
-
-    #[rtsan::nonblocking]
-    #[inline(always)]
-    fn view_slice_mut(&mut self, range: std::ops::Range<usize>) -> BlockViewMut<F> {
-        BlockViewMut::from_array_view(self.data.slice_mut(s![.., range]))
-    }
-
-    #[rtsan::nonblocking]
-    #[inline(always)]
-    fn data_mut(&mut self) -> ndarray::ArrayViewMut2<F> {
-        self.data.view_mut()
+    // TODO: Test
+    #[nonblocking]
+    pub fn clear(&mut self) {
+        self.data.fill(F::zero());
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use ndarray::{array, aview1, aview2, aview_mut2};
-
-    use crate::audio_block::BufferLayout;
+    use ndarray::{array, aview2};
 
     use super::*;
 
@@ -153,85 +167,10 @@ mod tests {
             BlockView::from_array_view(aview2(&[[0.0, 0.0, 0.0], [0.0, 0.0, 0.0]]))
         );
 
-        let mut block = Block::<f32>::from_array(array![[0.0, 0.1, 0.2], [1.0, 1.1, 1.2]]);
+        let block = Block::<f32>::from_array(array![[0.0, 0.1, 0.2], [1.0, 1.1, 1.2]]);
 
         // Block Read
         assert_eq!(block.num_channels(), 2);
         assert_eq!(block.num_frames(), 3);
-        assert_eq!(block.layout(), BufferLayout::Sequential);
-
-        // sample
-        assert_eq!(block.sample(0, 1), 0.1);
-        assert_eq!(block.sample(1, 2), 1.2);
-
-        // fn channel(&self, index: u16) -> ArrayView1<Sample>;
-        assert_eq!(block.channel(0), aview1(&[0.0, 0.1, 0.2]));
-        assert_eq!(block.channel(1), aview1(&[1.0, 1.1, 1.2]));
-        // fn frame(&self, index: u32) -> ArrayView1<Sample>;
-        assert_eq!(block.frame(0), aview1(&[0.0, 1.0]));
-        assert_eq!(block.frame(1), aview1(&[0.1, 1.1]));
-        assert_eq!(block.frame(2), aview1(&[0.2, 1.2]));
-        // fn channels(&self) -> Lanes<Sample, Dim<[usize; 1]>>;
-        for (ch, channel) in block.channels().into_iter().enumerate() {
-            if ch == 0 {
-                assert_eq!(channel, aview1(&[0.0, 0.1, 0.2]));
-            } else if ch == 1 {
-                assert_eq!(channel, aview1(&[1.0, 1.1, 1.2]));
-            }
-        }
-        // fn frames(&self) -> Lanes<Sample, Dim<[usize; 1]>>;
-        for (fr, frame) in block.frames().into_iter().enumerate() {
-            if fr == 0 {
-                assert_eq!(frame, aview1(&[0.0, 1.0]));
-            } else if fr == 1 {
-                assert_eq!(frame, aview1(&[0.1, 1.1]));
-            } else if fr == 2 {
-                assert_eq!(frame, aview1(&[0.2, 1.2]));
-            }
-        }
-        // fn view(&self) -> BlockView<Sample>;
-        assert_eq!(
-            block.view(),
-            BlockView::from_array_view(aview2(&[[0.0, 0.1, 0.2], [1.0, 1.1, 1.2]]))
-        );
-        // fn raw_buffer(&self) -> &[Sample];
-        assert_eq!(block.raw_buffer(), &[0.0, 0.1, 0.2, 1.0, 1.1, 1.2]);
-
-        // Block write
-        // sample_mut
-        assert_eq!(*block.sample_mut(0, 1), 0.1);
-        assert_eq!(*block.sample_mut(1, 2), 1.2);
-        // fn channel_mut(&mut self, index: u16) -> ArrayViewMut1<Sample>;
-        assert_eq!(block.channel_mut(0), aview1(&[0.0, 0.1, 0.2]));
-        assert_eq!(block.channel_mut(1), aview1(&[1.0, 1.1, 1.2]));
-        // fn frame_mut(&mut self, index: u32) -> ArrayViewMut1<Sample>;
-        assert_eq!(block.frame_mut(0), aview1(&[0.0, 1.0]));
-        assert_eq!(block.frame_mut(1), aview1(&[0.1, 1.1]));
-        assert_eq!(block.frame_mut(2), aview1(&[0.2, 1.2]));
-        // fn channels_mut(&mut self) -> LanesMut<Sample, Dim<[usize; 1]>>;
-        for (ch, channel) in block.channels_mut().into_iter().enumerate() {
-            if ch == 0 {
-                assert_eq!(channel, aview1(&[0.0, 0.1, 0.2]));
-            } else if ch == 1 {
-                assert_eq!(channel, aview1(&[1.0, 1.1, 1.2]));
-            }
-        }
-        // fn frames_mut(&mut self) -> LanesMut<Sample, Dim<[usize; 1]>>;
-        for (fr, frame) in block.frames_mut().into_iter().enumerate() {
-            if fr == 0 {
-                assert_eq!(frame, aview1(&[0.0, 1.0]));
-            } else if fr == 1 {
-                assert_eq!(frame, aview1(&[0.1, 1.1]));
-            } else if fr == 2 {
-                assert_eq!(frame, aview1(&[0.2, 1.2]));
-            }
-        }
-        // fn view_mut(&mut self) -> BlockViewMut<Sample>;
-        assert_eq!(
-            block.view_mut(),
-            BlockViewMut::from_array_view(aview_mut2(&mut [[0.0, 0.1, 0.2], [1.0, 1.1, 1.2]]),)
-        );
-        // fn raw_buffer_mut(&mut self) -> &mut [Sample];
-        assert_eq!(block.raw_buffer_mut(), &[0.0, 0.1, 0.2, 1.0, 1.1, 1.2]);
     }
 }

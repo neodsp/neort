@@ -11,8 +11,6 @@ pub struct Resamplers<F: Float + FftNum> {
     output: ResamplerFixedIn<F>,
     input_block: Block<F>,
     output_block: Block<F>,
-    in_frames_next: usize,
-    out_frames_last: usize,
 }
 
 impl<F: Float + FftNum> Resamplers<F> {
@@ -39,24 +37,33 @@ impl<F: Float + FftNum> Resamplers<F> {
         )
         .unwrap();
 
+        let mut input_block = input.generate_input_block();
+        let mut output_block = output.generate_output_block();
+        input_block.set_num_frames_accesible(input.input_frames_next());
+        output_block.set_num_frames_accesible(output.output_frames_next());
+
         Self {
-            input_block: input.generate_input_block(),
-            output_block: output.generate_output_block(),
-            in_frames_next: input.input_frames_next(),
-            out_frames_last: output.output_frames_next(),
+            input_block,
+            output_block,
             input,
             output,
         }
     }
 
     pub fn process_input(&mut self, output: &mut impl BlockWrite<F>) {
-        self.input.process(&self.input_block, output).unwrap();
-        self.in_frames_next = self.input_frames_next();
+        self.input
+            .process(&self.input_block.view(), output)
+            .unwrap();
+        self.input_block
+            .set_num_frames_accesible(self.input_frames_next());
     }
 
     pub fn process_output(&mut self, input: &impl BlockRead<F>) {
-        self.out_frames_last = self.output_frames_next();
-        self.output.process(input, &mut self.output_block).unwrap();
+        self.output_block
+            .set_num_frames_accesible(self.output_frames_next());
+        self.output
+            .process(input, &mut self.output_block.view_mut())
+            .unwrap();
     }
 
     pub fn input_frames_next(&self) -> usize {
@@ -75,11 +82,11 @@ impl<F: Float + FftNum> Resamplers<F> {
     }
 
     pub fn input_block(&mut self) -> BlockViewMut<F> {
-        self.input_block.view_slice_mut(0..self.in_frames_next)
+        self.input_block.view_mut()
     }
 
     pub fn output_block(&self) -> BlockView<F> {
-        self.output_block.view_slice(0..self.out_frames_last)
+        self.output_block.view()
     }
 
     pub fn frames_max(&self) -> usize {

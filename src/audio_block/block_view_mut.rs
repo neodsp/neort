@@ -3,6 +3,7 @@ use ndarray::{
     s, ArrayView1, ArrayViewMut1, ArrayViewMut2, Dim, ShapeBuilder,
 };
 use num::Float;
+use rtsan::{blocking, nonblocking};
 
 use super::{block_view::BlockView, Block, BlockRead, BlockWrite, BufferLayout};
 
@@ -12,6 +13,7 @@ pub struct BlockViewMut<'a, F: Float> {
 }
 
 impl<F: Float> Default for BlockViewMut<'_, F> {
+    #[nonblocking]
     fn default() -> Self {
         Self {
             data: ArrayViewMut2::from_shape((0, 0), &mut []).unwrap(),
@@ -20,7 +22,7 @@ impl<F: Float> Default for BlockViewMut<'_, F> {
 }
 
 impl<'a, F: Float> BlockViewMut<'a, F> {
-    #[rtsan::nonblocking]
+    #[nonblocking]
     pub fn from_buffer(
         buffer: &'a mut [F],
         num_channels: u16,
@@ -38,11 +40,24 @@ impl<'a, F: Float> BlockViewMut<'a, F> {
         Self { data }
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     pub fn from_array_view(view: ArrayViewMut2<'a, F>) -> Self {
         Self { data: view }
     }
 
+    // TODO: Test
+    /// # Safety
+    /// The buffer the pointer points to must be at least `num_channels` * `num_frames`
+    /// elements long. Otherwise this is undefined behavior.
+    #[nonblocking]
+    #[inline(always)]
+    pub unsafe fn from_ptr(ptr: *mut F, num_channels: u16, num_frames: usize) -> Self {
+        Self {
+            data: ArrayViewMut2::from_shape_ptr((num_channels as usize, num_frames), ptr),
+        }
+    }
+
+    #[blocking]
     pub fn to_owned(&self, force_sequential_layout: bool) -> Block<F> {
         if force_sequential_layout {
             Block::from_array(self.data.as_standard_layout().to_owned())
@@ -53,49 +68,49 @@ impl<'a, F: Float> BlockViewMut<'a, F> {
 }
 
 impl<F: Float> BlockRead<F> for BlockViewMut<'_, F> {
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn channel(&self, index: u16) -> ArrayView1<F> {
         self.data.row(index as usize)
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn frame(&self, index: usize) -> ArrayView1<F> {
         self.data.column(index)
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn channels(&self) -> Lanes<F, Dim<[usize; 1]>> {
         self.data.rows()
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn frames(&self) -> Lanes<F, Dim<[usize; 1]>> {
         self.data.columns()
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn view(&self) -> BlockView<F> {
         BlockView::from_array_view(self.data.view())
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn view_slice(&self, range: std::ops::Range<usize>) -> BlockView<F> {
         BlockView::from_array_view(self.data.slice(s![.., range]))
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn raw_buffer(&self) -> &[F] {
         self.data.as_slice_memory_order().unwrap()
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn data(&self) -> ndarray::ArrayView2<F> {
         self.data.view()
@@ -103,55 +118,55 @@ impl<F: Float> BlockRead<F> for BlockViewMut<'_, F> {
 }
 
 impl<F: Float> BlockWrite<F> for BlockViewMut<'_, F> {
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn sample_mut(&mut self, ch: u16, frame: usize) -> &mut F {
         &mut self.data[[ch as usize, frame]]
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn channel_mut(&mut self, index: u16) -> ArrayViewMut1<F> {
         self.data.row_mut(index as usize)
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn frame_mut(&mut self, index: usize) -> ArrayViewMut1<F> {
         self.data.column_mut(index)
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn channels_mut(&mut self) -> LanesMut<F, Dim<[usize; 1]>> {
         self.data.rows_mut()
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn frames_mut(&mut self) -> LanesMut<F, Dim<[usize; 1]>> {
         self.data.columns_mut()
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn view_mut(&mut self) -> BlockViewMut<F> {
         BlockViewMut::from_array_view(self.data.view_mut())
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn view_slice_mut(&mut self, range: std::ops::Range<usize>) -> BlockViewMut<F> {
         BlockViewMut::from_array_view(self.data.slice_mut(s![.., range]))
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn raw_buffer_mut(&mut self) -> &mut [F] {
         self.data.as_slice_memory_order_mut().unwrap()
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     #[inline(always)]
     fn data_mut(&mut self) -> ndarray::ArrayViewMut2<F> {
         self.data.view_mut()

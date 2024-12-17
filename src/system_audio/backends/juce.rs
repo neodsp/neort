@@ -5,7 +5,10 @@ use cxx_juce::juce_audio_devices::{
 
 use crate::{
     audio_block::{Block, BlockRead, BlockWrite},
-    system_audio::{AvailableDevices, AvailableSettings, DeviceConfig, Driver, SystemAudioError},
+    system_audio::{
+        device_config::ProcessConfig, AvailableDevices, AvailableSettings, DeviceConfig, Driver,
+        SystemAudioError,
+    },
 };
 
 use super::AudioBackend;
@@ -102,6 +105,7 @@ impl<'a> AudioBackend for JuceBackend<'a> {
     fn start_stream(
         &mut self,
         device_config: &crate::system_audio::DeviceConfig,
+        prepare_fn: impl FnMut(ProcessConfig) -> Result<(), &'static str> + std::marker::Send + 'static,
         process_fn: impl FnMut(crate::audio_block::BlockViewMut<f32>) -> Result<(), &'static str>
             + 'static
             + std::marker::Send
@@ -123,7 +127,7 @@ impl<'a> AudioBackend for JuceBackend<'a> {
 
         self.handle = Some(
             self.device_manager
-                .add_audio_callback(JuceAudioCallback::new(process_fn)),
+                .add_audio_callback(JuceAudioCallback::new(prepare_fn, process_fn)),
         );
         Ok(())
     }
@@ -141,21 +145,24 @@ impl<'a> AudioBackend for JuceBackend<'a> {
 }
 
 pub struct JuceAudioCallback {
+    prepare_fn: Box<dyn FnMut(ProcessConfig) -> Result<(), &'static str> + Send + 'static>,
     process_fn: Box<
         dyn FnMut(crate::audio_block::BlockViewMut<f32>) -> Result<(), &'static str>
-            + 'static
-            + Send,
+            + Send
+            + 'static,
     >,
     block: Block<f32>,
 }
 
 impl JuceAudioCallback {
     pub fn new(
+        prepare: impl FnMut(ProcessConfig) -> Result<(), &'static str> + Send + 'static,
         process_fn: impl FnMut(crate::audio_block::BlockViewMut<f32>) -> Result<(), &'static str>
-            + 'static
-            + Send,
+            + Send
+            + 'static,
     ) -> Self {
         Self {
+            prepare_fn: Box::new(prepare),
             process_fn: Box::new(process_fn),
             block: Block::default(),
         }
@@ -164,13 +171,15 @@ impl JuceAudioCallback {
 
 impl AudioIODeviceCallback for JuceAudioCallback {
     fn about_to_start(&mut self, device: &mut dyn AudioIODevice) {
-        dbg!(device.name());
-        dbg!(device.buffer_size());
-        dbg!(device.sample_rate());
-        dbg!(device.input_channels());
-        dbg!(device.output_channels());
-        let num_channels = device.input_channels().min(device.output_channels());
-        self.block = Block::new(num_channels as u16, device.buffer_size());
+        let num_channels = device.input_channels().min(device.output_channels()) as u16;
+        self.block = Block::new(num_channels, device.buffer_size());
+        self.prepare_fn.as_mut()(ProcessConfig {
+            num_input_channels: device.input_channels() as u16,
+            num_output_channels: device.output_channels() as u16,
+            num_frames: device.buffer_size(),
+            sample_rate: device.sample_rate(),
+        })
+        .unwrap();
     }
 
     fn process_block(
@@ -207,9 +216,17 @@ mod tests {
         let mut backend = JuceBackend::new()?;
         let config = backend.default_config()?;
         let _available: Result<AvailableDevices, SystemAudioError> = backend.available_devices();
-        let settings = backend.available_settings(&config)?;
-        dbg!(settings);
-        backend.start_stream(&config, |_| Ok(())).unwrap();
+        let _settings = backend.available_settings(&config)?;
+        backend
+            .start_stream(
+                &config,
+                |conf| {
+                    dbg!(conf);
+                    Ok(())
+                },
+                |_| Ok(()),
+            )
+            .unwrap();
         std::thread::sleep(std::time::Duration::from_secs(5));
         backend.stop_stream().unwrap();
 

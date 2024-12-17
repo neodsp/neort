@@ -8,3 +8,11 @@ pub struct DeviceConfig {
     pub sample_rate: f64,
     pub num_frames: usize,
 }
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct ProcessConfig {
+    pub num_input_channels: u16,
+    pub num_output_channels: u16,
+    pub num_frames: usize,
+    pub sample_rate: f64,
+}

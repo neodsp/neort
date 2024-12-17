@@ -13,8 +13,7 @@ categories = ["multimedia::audio"]
 [dependencies]
 atomic_float = "1.1"
 cubeb = { version = "0.20", optional = true }
-cxx-juce = { version = "0.7.1", optional = true }
-lazy_static = "1.5.0"
+cxx-juce = { git = "https://github.com/neodsp/cxx-juce", optional = true }
 ndarray = "0.16"
 num = "0.4"
 realfft = "3.4"

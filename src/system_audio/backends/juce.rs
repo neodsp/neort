@@ -1,11 +1,7 @@
-use cxx_juce::{
-    juce_audio_devices::{
-        AudioCallbackHandle, AudioDeviceManager, AudioIODevice, AudioIODeviceCallback,
-        AudioIODeviceType, ChannelCount,
-    },
-    JUCE,
+use cxx_juce::juce_audio_devices::{
+    AudioCallbackHandle, AudioDeviceManager, AudioIODevice, AudioIODeviceCallback,
+    AudioIODeviceType, ChannelCount,
 };
-use lazy_static::lazy_static;
 
 use crate::{
     audio_block::{Block, BlockRead, BlockWrite},
@@ -14,21 +10,17 @@ use crate::{
 
 use super::AudioBackend;
 
-lazy_static! {
-    static ref JUCE_GLOBAL: JUCE<'static> = JUCE::initialise();
-}
-
-pub struct JuceBackend {
-    device_manager: AudioDeviceManager<'static>,
+pub struct JuceBackend<'a> {
+    device_manager: AudioDeviceManager<'a>,
     handle: Option<AudioCallbackHandle>,
 }
 
-impl AudioBackend for JuceBackend {
+impl<'a> AudioBackend for JuceBackend<'a> {
     fn new() -> Result<Self, crate::system_audio::SystemAudioError>
     where
         Self: Sized,
     {
-        let mut device_manager = AudioDeviceManager::new(&JUCE_GLOBAL);
+        let mut device_manager = AudioDeviceManager::new();
         device_manager.initialise(256, 256).map_err(|_| {
             SystemAudioError::UnknownBackendError("Could not Initialize".to_string())
         })?;
@@ -214,7 +206,7 @@ mod tests {
     fn test() -> Result<(), SystemAudioError> {
         let mut backend = JuceBackend::new()?;
         let config = backend.default_config()?;
-        let _available = backend.available_devices();
+        let _available: Result<AvailableDevices, SystemAudioError> = backend.available_devices();
         let settings = backend.available_settings(&config)?;
         dbg!(settings);
         backend.start_stream(&config, |_| Ok(())).unwrap();

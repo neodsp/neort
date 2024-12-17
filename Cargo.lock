@@ -94,9 +94,9 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-utils"
-version = "0.8.20"
+version = "0.8.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "22ec99545bb0ed0ea7bb9b8e1e9122ea386ff8a48c0922e43f36d45ab09e0e80"
+checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
 
 [[package]]
 name = "cubeb"
@@ -130,9 +130,9 @@ dependencies = [
 
 [[package]]
 name = "cxx"
-version = "1.0.134"
+version = "1.0.135"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5a32d755fe20281b46118ee4b507233311fb7a48a0cfd42f554b93640521a2f"
+checksum = "4d44ff199ff93242c3afe480ab588d544dd08d72e92885e152ffebc670f076ad"
 dependencies = [
  "cc",
  "cxxbridge-cmd",
@@ -144,9 +144,9 @@ dependencies = [
 
 [[package]]
 name = "cxx-build"
-version = "1.0.134"
+version = "1.0.135"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "11645536ada5d1c8804312cbffc9ab950f2216154de431de930da47ca6955199"
+checksum = "66fd8f17ad454fc1e4f4ab83abffcc88a532e90350d3ffddcb73030220fcbd52"
 dependencies = [
  "cc",
  "codespan-reporting",
@@ -159,8 +159,7 @@ dependencies = [
 [[package]]
 name = "cxx-juce"
 version = "0.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "09dca8bb7a18b89be4bfbd7048a7d335fe6b4003cae08f7973df6751f22dd6f5"
+source = "git+https://github.com/neodsp/cxx-juce#c80870398380a50f53fb75d6602d4a121ce6e8b5"
 dependencies = [
  "cmake",
  "cxx",
@@ -170,9 +169,9 @@ dependencies = [
 
 [[package]]
 name = "cxxbridge-cmd"
-version = "1.0.134"
+version = "1.0.135"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ebcc9c78e3c7289665aab921a2b394eaffe8bdb369aa18d81ffc0f534fd49385"
+checksum = "4717c9c806a9e07fdcb34c84965a414ea40fafe57667187052cf1eb7f5e8a8a9"
 dependencies = [
  "clap",
  "codespan-reporting",
@@ -183,15 +182,15 @@ dependencies = [
 
 [[package]]
 name = "cxxbridge-flags"
-version = "1.0.134"
+version = "1.0.135"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3a22a87bd9e78d7204d793261470a4c9d585154fddd251828d8aefbb5f74c3bf"
+checksum = "2f6515329bf3d98f4073101c7866ff2bec4e635a13acb82e3f3753fff0bf43cb"
 
 [[package]]
 name = "cxxbridge-macro"
-version = "1.0.134"
+version = "1.0.135"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1dfdb020ff8787c5daf6e0dca743005cc8782868faeadfbabb8824ede5cb1c72"
+checksum = "fb93e6a7ce8ec985c02bbb758237a31598b340acbbc3c19c5a4fa6adaaac92ab"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -286,7 +285,6 @@ dependencies = [
  "atomic_float",
  "cubeb",
  "cxx-juce",
- "lazy_static",
  "ndarray",
  "num",
  "realfft",
@@ -452,8 +450,8 @@ dependencies = [
 
 [[package]]
 name = "rtaudio"
-version = "0.3.3"
-source = "git+https://github.com/neodsp/rtaudio-rs#0495b37907d87f0f89a40ec5ca193fdea9c47fc0"
+version = "0.3.4"
+source = "git+https://github.com/neodsp/rtaudio-rs#b551850b29323ac1a09a481bec539e5314a2cb44"
 dependencies = [
  "bitflags 2.6.0",
  "lazy_static",
@@ -463,8 +461,9 @@ dependencies = [
 
 [[package]]
 name = "rtaudio-sys"
-version = "0.3.3"
-source = "git+https://github.com/neodsp/rtaudio-sys#c8c2c37bc8907262b0aff7d0015541cb38457ab7"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9141197d3f60bf45d6866efa79f6d52548805fb851d9e6f01f919df60ca103f8"
 dependencies = [
  "cmake",
  "pkg-config",

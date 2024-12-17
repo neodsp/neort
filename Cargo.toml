@@ -19,6 +19,7 @@ ndarray = "0.16"
 num = "0.4"
 realfft = "3.4"
 ringbuf = "0.4"
+rtaudio = { git = "https://github.com/neodsp/rtaudio-rs", optional = true }
 rtsan = { git = "https://github.com/realtime-sanitizer/rtsan-standalone-rs", branch = "dev" }
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "2.0"
@@ -27,6 +28,8 @@ thiserror = "2.0"
 rubato = "0.16.1"
 
 [features]
+default = ["system-audio-juce"]
 rtsan = ["rtsan/enable"]
 system-audio-cubeb = ["cubeb"]
 system-audio-juce = ["cxx-juce"]
+system-audio-rtaudio = ["rtaudio"]

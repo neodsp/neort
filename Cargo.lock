@@ -249,6 +249,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "78b3ae25bc7c8c38cec158d1f2757ee79e9b3740fbc7ccf0e59e4b08d793fa89"
 
 [[package]]
+name = "log"
+version = "0.4.22"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a7a70ba024b9dc04c27ea2f0c0548feb474ec5c54bba33a7f72f873a39d07b24"
+
+[[package]]
 name = "matrixmultiply"
 version = "0.3.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -285,6 +291,7 @@ dependencies = [
  "num",
  "realfft",
  "ringbuf",
+ "rtaudio",
  "rtsan",
  "rubato",
  "serde",
@@ -441,6 +448,26 @@ checksum = "726bb493fe9cac765e8f96a144c3a8396bdf766dedad22e504b70b908dcbceb4"
 dependencies = [
  "crossbeam-utils",
  "portable-atomic",
+]
+
+[[package]]
+name = "rtaudio"
+version = "0.3.3"
+source = "git+https://github.com/neodsp/rtaudio-rs#0495b37907d87f0f89a40ec5ca193fdea9c47fc0"
+dependencies = [
+ "bitflags 2.6.0",
+ "lazy_static",
+ "log",
+ "rtaudio-sys",
+]
+
+[[package]]
+name = "rtaudio-sys"
+version = "0.3.3"
+source = "git+https://github.com/neodsp/rtaudio-sys#c8c2c37bc8907262b0aff7d0015541cb38457ab7"
+dependencies = [
+ "cmake",
+ "pkg-config",
 ]
 
 [[package]]

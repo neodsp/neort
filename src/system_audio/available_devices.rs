@@ -1,30 +1,8 @@
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct InputDevice {
-    pub name: String,
-    pub num_ch: u16,
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
-pub struct OutputDevice {
-    pub name: String,
-    pub num_ch: u16,
-}
-
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
 pub struct Driver {
     pub name: String,
-    pub input_devices: Vec<InputDevice>,
-    pub output_devices: Vec<OutputDevice>,
-}
-
-impl Driver {
-    pub fn input_device(&self, name: &str) -> Option<&InputDevice> {
-        self.input_devices.iter().find(|d| d.name.contains(name))
-    }
-
-    pub fn output_device(&self, name: &str) -> Option<&OutputDevice> {
-        self.output_devices.iter().find(|d| d.name.contains(name))
-    }
+    pub input_devices: Vec<String>,
+    pub output_devices: Vec<String>,
 }
 
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
@@ -36,4 +14,14 @@ impl AvailableDevices {
     pub fn driver(&self, name: &str) -> Option<&Driver> {
         self.drivers.iter().find(|d| d.name.contains(name))
     }
+}
+
+#[derive(Debug, serde::Serialize, serde::Deserialize)]
+pub struct AvailableSettings {
+    pub num_input_ch: u16,
+    pub num_output_ch: u16,
+    pub sample_rates: Vec<f64>,
+    pub num_frames: Vec<usize>,
+    pub default_sample_rate: f64,
+    pub default_num_frames: usize,
 }

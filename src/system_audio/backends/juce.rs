@@ -1,7 +1,7 @@
 use cxx_juce::{
     juce_audio_devices::{
         AudioCallbackHandle, AudioDeviceManager, AudioIODevice, AudioIODeviceCallback,
-        AudioIODeviceType,
+        AudioIODeviceType, ChannelCount,
     },
     JUCE,
 };
@@ -9,9 +9,7 @@ use lazy_static::lazy_static;
 
 use crate::{
     audio_block::{Block, BlockRead, BlockWrite},
-    system_audio::{
-        AvailableDevices, DeviceConfig, Driver, InputDevice, OutputDevice, SystemAudioError,
-    },
+    system_audio::{AvailableDevices, AvailableSettings, DeviceConfig, Driver, SystemAudioError},
 };
 
 use super::AudioBackend;
@@ -40,40 +38,6 @@ impl<'a> AudioBackend for JuceBackend<'a> {
         })
     }
 
-    fn available_devices(
-        &mut self,
-    ) -> Result<crate::system_audio::AvailableDevices, crate::system_audio::SystemAudioError> {
-        Ok(AvailableDevices {
-            drivers: self
-                .device_manager
-                .device_types()
-                .iter_mut()
-                .map(|d| {
-                    d.scan_for_devices();
-                    Driver {
-                        name: d.name(),
-                        input_devices: d
-                            .input_devices()
-                            .iter()
-                            .map(|d| InputDevice {
-                                name: d.clone(),
-                                num_ch: 256,
-                            })
-                            .collect(),
-                        output_devices: d
-                            .output_devices()
-                            .iter()
-                            .map(|d| OutputDevice {
-                                name: d.clone(),
-                                num_ch: 256,
-                            })
-                            .collect(),
-                    }
-                })
-                .collect(),
-        })
-    }
-
     fn default_config(
         &mut self,
     ) -> Result<crate::system_audio::DeviceConfig, crate::system_audio::SystemAudioError> {
@@ -86,10 +50,60 @@ impl<'a> AudioBackend for JuceBackend<'a> {
             driver: default_device.type_name().to_string(),
             input_device: default_device.name().to_string(),
             output_device: default_device.name().to_string(),
-            sample_rate: default_device.sample_rate() as u32,
+            sample_rate: default_device.sample_rate(),
             num_input_ch: default_device.input_channels() as u16,
             num_output_ch: default_device.output_channels() as u16,
             num_frames: default_device.buffer_size(),
+        })
+    }
+
+    fn available_devices(
+        &mut self,
+    ) -> Result<crate::system_audio::AvailableDevices, crate::system_audio::SystemAudioError> {
+        Ok(AvailableDevices {
+            drivers: self
+                .device_manager
+                .device_types()
+                .iter_mut()
+                .map(|d| {
+                    d.scan_for_devices();
+                    Driver {
+                        name: d.name(),
+                        input_devices: d.input_devices(),
+                        output_devices: d.output_devices(),
+                    }
+                })
+                .collect(),
+        })
+    }
+
+    fn available_settings(
+        &mut self,
+        config: &DeviceConfig,
+    ) -> Result<crate::system_audio::AvailableSettings, SystemAudioError> {
+        self.device_manager
+            .set_current_audio_device_type(&config.driver);
+
+        self.device_manager.set_audio_device_setup(
+            &self
+                .device_manager
+                .audio_device_setup()
+                .with_input_device_name(&config.input_device)
+                .with_output_device_name(&config.output_device),
+        );
+
+        let mut device = self
+            .device_manager
+            .current_device()
+            .ok_or(SystemAudioError::DeviceNotFound(String::new()))?;
+
+        Ok(AvailableSettings {
+            num_input_ch: device.input_channels() as u16,
+            num_output_ch: device.output_channels() as u16,
+            sample_rates: device.available_sample_rates(),
+            num_frames: device.available_buffer_sizes(),
+            default_sample_rate: device.sample_rate(),
+            default_num_frames: device.buffer_size(),
         })
     }
 
@@ -101,6 +115,20 @@ impl<'a> AudioBackend for JuceBackend<'a> {
             + std::marker::Send
             + std::marker::Sync,
     ) -> Result<(), crate::system_audio::SystemAudioError> {
+        self.device_manager
+            .set_current_audio_device_type(&device_config.driver);
+
+        let setup = self
+            .device_manager
+            .audio_device_setup()
+            .with_input_device_name(&device_config.input_device)
+            .with_output_device_name(&device_config.output_device)
+            .with_input_channels(ChannelCount::Custom(device_config.num_input_ch as i32))
+            .with_output_channels(ChannelCount::Custom(device_config.num_output_ch as i32))
+            .with_sample_rate(device_config.sample_rate)
+            .with_buffer_size(device_config.num_frames);
+        self.device_manager.set_audio_device_setup(&setup);
+
         self.handle = Some(
             self.device_manager
                 .add_audio_callback(JuceAudioCallback::new(process_fn)),
@@ -184,9 +212,12 @@ mod tests {
 
     #[test]
     fn test() -> Result<(), SystemAudioError> {
-        let mut juce = JuceBackend::new()?;
-        let config = juce.default_config()?;
-        juce.start_stream(&config, |_| Ok(())).unwrap();
+        let mut backend = JuceBackend::new()?;
+        let config = backend.default_config()?;
+        let _available = backend.available_devices();
+        let settings = backend.available_settings(&config)?;
+        dbg!(settings);
+        backend.start_stream(&config, |_| Ok(())).unwrap();
         std::thread::sleep(std::time::Duration::from_secs(10));
         Ok(())
     }

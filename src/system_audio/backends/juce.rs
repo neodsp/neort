@@ -5,7 +5,6 @@ use cxx_juce::{
     },
     JUCE,
 };
-use lazy_static::lazy_static;
 
 use crate::{
     audio_block::{Block, BlockRead, BlockWrite},
@@ -14,25 +13,34 @@ use crate::{
 
 use super::AudioBackend;
 
-lazy_static! {
-    static ref JUCE_GLOBAL: JUCE<'static> = JUCE::initialise();
-}
-
-pub struct JuceBackend<'a> {
-    device_manager: AudioDeviceManager<'a>,
+pub struct JuceBackend {
+    juce_ptr: *mut JUCE<'static>,
+    device_manager: AudioDeviceManager<'static>,
     handle: Option<AudioCallbackHandle>,
 }
 
-impl<'a> AudioBackend for JuceBackend<'a> {
+impl Drop for JuceBackend {
+    fn drop(&mut self) {
+        unsafe {
+            let _ = Box::from_raw(self.juce_ptr);
+        }
+    }
+}
+
+impl AudioBackend for JuceBackend {
     fn new() -> Result<Self, crate::system_audio::SystemAudioError>
     where
         Self: Sized,
     {
-        let mut device_manager = AudioDeviceManager::new(&JUCE_GLOBAL);
+        let juce_box = Box::new(JUCE::initialise());
+        let juce_ptr = Box::into_raw(juce_box);
+        let juce_ref = unsafe { &*juce_ptr };
+        let mut device_manager = AudioDeviceManager::new(juce_ref);
         device_manager.initialise(256, 256).map_err(|_| {
             SystemAudioError::UnknownBackendError("Could not Initialize".to_string())
         })?;
         Ok(Self {
+            juce_ptr,
             device_manager,
             handle: None,
         })
@@ -218,7 +226,9 @@ mod tests {
         let settings = backend.available_settings(&config)?;
         dbg!(settings);
         backend.start_stream(&config, |_| Ok(())).unwrap();
-        std::thread::sleep(std::time::Duration::from_secs(10));
+        std::thread::sleep(std::time::Duration::from_secs(5));
+        backend.stop_stream().unwrap();
+
         Ok(())
     }
 }

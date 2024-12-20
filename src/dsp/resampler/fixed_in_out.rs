@@ -1,9 +1,9 @@
 // The resamplers are copied from rubato by Henrik Enquist and adapted to take Blocks
 
-use num::Float;
-use realfft::FftNum;
-
-use crate::audio_block::{BlockRead, BlockWrite};
+use crate::{
+    audio_block::{BlockRead, BlockWrite},
+    Sample,
+};
 
 use super::{
     base::FftResampler,
@@ -17,16 +17,16 @@ use super::{
 /// The resampling is done by FFT:ing the input data. The spectrum is then extended or
 /// truncated as well as multiplied with an antialiasing filter
 /// before it's inverse transformed to get the resampled waveforms.
-pub struct ResamplerFixedInOut<F: Float + FftNum> {
+pub struct ResamplerFixedInOut<S: Sample> {
     num_channels: u16,
     num_frames_in: usize,
     num_frames_out: usize,
     fft_size_in: usize,
-    overlaps: Vec<Vec<F>>,
-    resampler: FftResampler<F>,
+    overlaps: Vec<Vec<S>>,
+    resampler: FftResampler<S>,
 }
 
-impl<F: Float + FftNum> ResamplerFixedInOut<F> {
+impl<S: Sample> ResamplerFixedInOut<S> {
     /// Create a new FftFixedInOut.
     ///
     /// Parameters are:
@@ -48,9 +48,9 @@ impl<F: Float + FftNum> ResamplerFixedInOut<F> {
         let fft_size_out = fft_chunks * sample_rate_output / gcd;
         let fft_size_in = fft_chunks * sample_rate_input / gcd;
 
-        let resampler = FftResampler::<F>::new(fft_size_in, fft_size_out);
+        let resampler = FftResampler::<S>::new(fft_size_in, fft_size_out);
 
-        let overlaps: Vec<Vec<F>> = vec![vec![F::zero(); fft_size_out]; num_channels as usize];
+        let overlaps: Vec<Vec<S>> = vec![vec![S::zero(); fft_size_out]; num_channels as usize];
 
         Ok(ResamplerFixedInOut {
             num_channels,
@@ -63,12 +63,12 @@ impl<F: Float + FftNum> ResamplerFixedInOut<F> {
     }
 }
 
-impl<F: Float + FftNum> Resampler<F> for ResamplerFixedInOut<F> {
+impl<S: Sample> Resampler<S> for ResamplerFixedInOut<S> {
     #[rtsan::nonblocking]
     fn process(
         &mut self,
-        input: &impl BlockRead<F>,
-        output: &mut impl BlockWrite<F>,
+        input: &impl BlockRead<S>,
+        output: &mut impl BlockWrite<S>,
     ) -> Result<(usize, usize), ()> {
         validate_buffers(
             input,
@@ -118,7 +118,7 @@ impl<F: Float + FftNum> Resampler<F> for ResamplerFixedInOut<F> {
     fn reset(&mut self) {
         self.overlaps
             .iter_mut()
-            .for_each(|ch| ch.iter_mut().for_each(|s| *s = F::zero()));
+            .for_each(|ch| ch.iter_mut().for_each(|s| *s = S::zero()));
     }
 }
 
@@ -135,13 +135,11 @@ mod tests {
         let mut resampler = ResamplerFixedInOut::<f32>::new(44100, 48000, 1, 2).unwrap();
 
         let mut input = resampler.generate_input_block();
-        input.view_mut().channel_mut(0)[0] = 1.0;
-        input.view_mut().channel_mut(1)[2] = 1.0;
+        input.channel_mut(0)[0] = 1.0;
+        input.channel_mut(1)[2] = 1.0;
         let mut output = resampler.generate_output_block();
 
-        resampler
-            .process(&input.view(), &mut output.view_mut())
-            .unwrap();
+        resampler.process(&input, &mut output.view_mut()).unwrap();
 
         let mut rub = rubato::FftFixedInOut::<f32>::new(44100, 48000, 1, 2).unwrap();
         let mut rub_in = rub.input_buffer_allocate(true);
@@ -150,7 +148,7 @@ mod tests {
 
         let rub_output = rub.process(&rub_in, None).unwrap();
 
-        assert_eq!(output.view().channel(0).to_vec(), rub_output[0]);
-        assert_eq!(output.view().channel(1).to_vec(), rub_output[1]);
+        assert_eq!(output.channel(0).to_vec(), rub_output[0]);
+        assert_eq!(output.channel(1).to_vec(), rub_output[1]);
     }
 }

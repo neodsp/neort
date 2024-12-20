@@ -1,15 +1,16 @@
-use ndarray::{iter::Lanes, s, ArrayView1, ArrayView2, Dim, ShapeBuilder};
-use num::Float;
+use ndarray::{ArrayView1, ArrayView2, ShapeBuilder};
 use rtsan::nonblocking;
+
+use crate::Sample;
 
 use super::{BlockRead, BufferLayout};
 
 #[derive(Debug, Clone, PartialEq)]
-pub struct BlockView<'a, F: Float> {
-    data: ArrayView2<'a, F>,
+pub struct BlockView<'a, S: Sample> {
+    data: ArrayView2<'a, S>,
 }
 
-impl<F: Float> Default for BlockView<'_, F> {
+impl<S: Sample> Default for BlockView<'_, S> {
     #[nonblocking]
     fn default() -> Self {
         Self {
@@ -18,11 +19,11 @@ impl<F: Float> Default for BlockView<'_, F> {
     }
 }
 
-impl<'a, F: Float> BlockView<'a, F> {
+impl<'a, S: Sample> BlockView<'a, S> {
     #[nonblocking]
     #[inline(always)]
     pub fn from_buffer(
-        buffer: &'a [F],
+        buffer: &'a [S],
         num_channels: u16,
         num_frames: usize,
         layout: BufferLayout,
@@ -40,7 +41,7 @@ impl<'a, F: Float> BlockView<'a, F> {
 
     #[nonblocking]
     #[inline(always)]
-    pub fn from_array_view(view: ArrayView2<'a, F>) -> Self {
+    pub fn from_array_view(view: ArrayView2<'a, S>) -> Self {
         Self { data: view }
     }
 
@@ -50,157 +51,134 @@ impl<'a, F: Float> BlockView<'a, F> {
     /// elements long. Otherwise this is undefined behavior.
     #[nonblocking]
     #[inline(always)]
-    pub unsafe fn from_ptr(ptr: *const F, num_channels: u16, num_frames: usize) -> Self {
+    pub unsafe fn from_ptr(ptr: *const S, num_channels: u16, num_frames: usize) -> Self {
         Self {
             data: ArrayView2::from_shape_ptr((num_channels as usize, num_frames), ptr),
         }
     }
 }
 
-impl<F: Float> BlockRead<F> for BlockView<'_, F> {
+impl<S: Sample> BlockRead<S> for BlockView<'_, S> {
     #[nonblocking]
-    #[inline(always)]
-    fn channel(&self, index: u16) -> ArrayView1<F> {
+    fn num_channels(&self) -> u16 {
+        self.data.nrows() as u16
+    }
+
+    #[nonblocking]
+    fn num_frames(&self) -> usize {
+        self.data.ncols()
+    }
+
+    #[nonblocking]
+    fn sample(&self, ch: u16, frame: usize) -> S {
+        self.data[[ch as usize, frame]]
+    }
+
+    #[nonblocking]
+    fn channel(&self, index: u16) -> ArrayView1<S> {
         self.data.row(index as usize)
     }
 
     #[nonblocking]
-    #[inline(always)]
-    fn frame(&self, index: usize) -> ArrayView1<F> {
-        self.data.column(index)
-    }
-
-    #[nonblocking]
-    #[inline(always)]
-    fn channels(&self) -> Lanes<F, Dim<[usize; 1]>> {
-        self.data.rows()
-    }
-
-    #[nonblocking]
-    #[inline(always)]
-    fn frames(&self) -> Lanes<F, Dim<[usize; 1]>> {
-        self.data.columns()
-    }
-
-    #[nonblocking]
-    #[inline(always)]
-    fn view(&self) -> BlockView<F> {
-        BlockView::from_array_view(self.data.view())
-    }
-
-    #[nonblocking]
-    #[inline(always)]
-    fn view_slice(&self, range: std::ops::Range<usize>) -> BlockView<F> {
-        BlockView::from_array_view(self.data.slice(s![.., range]))
-    }
-
-    #[nonblocking]
-    #[inline(always)]
-    fn raw_buffer(&self) -> &[F] {
-        self.data.as_slice_memory_order().unwrap()
-    }
-
-    #[nonblocking]
-    #[inline(always)]
-    fn data(&self) -> ndarray::ArrayView2<F> {
-        self.data.view()
+    fn channels(&self) -> impl Iterator<Item = ndarray::ArrayView1<S>> {
+        self.data.rows().into_iter()
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use ndarray::{array, aview1, aview2};
-
-    use crate::audio_block::Block;
-
     use super::*;
+    use ndarray::{arr2, array};
 
     #[test]
-    fn block_view_sequential() {
-        let block = BlockView::from_buffer(
-            &[0.0, 0.1, 0.2, 1.0, 1.1, 1.2],
-            2,
-            3,
-            BufferLayout::Sequential,
-        );
-
-        assert_eq!(
-            block.to_owned_block(),
-            Block::from_array(array![[0.0, 0.1, 0.2], [1.0, 1.1, 1.2]])
-        );
-
-        assert_eq!(
-            block.to_owned_block().raw_buffer(),
-            &[0.0, 0.1, 0.2, 1.0, 1.1, 1.2]
-        );
-
-        // Block Read
-        assert_eq!(block.num_channels(), 2);
-        assert_eq!(block.num_frames(), 3);
-        assert_eq!(block.layout(), BufferLayout::Sequential);
-
-        // sample
-        assert_eq!(block.sample(0, 1), 0.1);
-        assert_eq!(block.sample(1, 2), 1.2);
-
-        // fn channel(&self, index: u16) -> ArrayView1<Sample>;
-        assert_eq!(block.channel(0), aview1(&[0.0, 0.1, 0.2]));
-        assert_eq!(block.channel(1), aview1(&[1.0, 1.1, 1.2]));
-        // fn frame(&self, index: u32) -> ArrayView1<Sample>;
-        assert_eq!(block.frame(0), aview1(&[0.0, 1.0]));
-        assert_eq!(block.frame(1), aview1(&[0.1, 1.1]));
-        assert_eq!(block.frame(2), aview1(&[0.2, 1.2]));
-        // fn channels(&self) -> Lanes<Sample, Dim<[usize; 1]>>;
-        for (ch, channel) in block.channels().into_iter().enumerate() {
-            if ch == 0 {
-                assert_eq!(channel, aview1(&[0.0, 0.1, 0.2]));
-            } else if ch == 1 {
-                assert_eq!(channel, aview1(&[1.0, 1.1, 1.2]));
-            }
-        }
-        // fn frames(&self) -> Lanes<Sample, Dim<[usize; 1]>>;
-        for (fr, frame) in block.frames().into_iter().enumerate() {
-            if fr == 0 {
-                assert_eq!(frame, aview1(&[0.0, 1.0]));
-            } else if fr == 1 {
-                assert_eq!(frame, aview1(&[0.1, 1.1]));
-            } else if fr == 2 {
-                assert_eq!(frame, aview1(&[0.2, 1.2]));
-            }
-        }
-        // fn view(&self) -> BlockView<Sample>;
-        assert_eq!(
-            block.view(),
-            BlockView::from_array_view(aview2(&[[0.0, 0.1, 0.2], [1.0, 1.1, 1.2]]))
-        );
-        // fn raw_buffer(&self) -> &[Sample];
-        assert_eq!(block.raw_buffer(), &[0.0, 0.1, 0.2, 1.0, 1.1, 1.2]);
+    fn test_default() {
+        let block: BlockView<f32> = BlockView::default();
+        assert_eq!(block.num_channels(), 0);
+        assert_eq!(block.num_frames(), 0);
     }
 
     #[test]
-    fn block_view_interleaved() {
-        let block = BlockView::from_buffer(
-            &[0.0, 1.0, 0.1, 1.1, 0.2, 1.2],
-            2,
-            3,
-            BufferLayout::Interleaved,
-        );
+    fn test_from_buffer_sequential() {
+        let buffer = [1.0f32, 2.0, 3.0, 4.0];
+        let block = BlockView::from_buffer(&buffer, 2, 2, BufferLayout::Sequential);
+        assert_eq!(block.num_channels(), 2);
+        assert_eq!(block.num_frames(), 2);
+        assert_eq!(block.sample(0, 0), 1.0);
+        assert_eq!(block.sample(1, 1), 4.0);
+    }
 
-        assert_eq!(
-            block.to_owned_block(),
-            Block::from_array(array![[0.0, 0.1, 0.2], [1.0, 1.1, 1.2]])
-        );
+    #[test]
+    fn test_from_buffer_interleaved() {
+        let buffer = [1.0f32, 2.0, 3.0, 4.0];
+        let block = BlockView::from_buffer(&buffer, 2, 2, BufferLayout::Interleaved);
+        assert_eq!(block.num_channels(), 2);
+        assert_eq!(block.num_frames(), 2);
+        assert_eq!(block.sample(0, 0), 1.0);
+        assert_eq!(block.sample(1, 0), 2.0);
+        assert_eq!(block.sample(0, 1), 3.0);
+        assert_eq!(block.sample(1, 1), 4.0);
+    }
 
-        assert_eq!(
-            block.to_owned_block().raw_buffer(),
-            &[0.0, 0.1, 0.2, 1.0, 1.1, 1.2]
-        );
+    #[test]
+    fn test_from_array_view() {
+        let arr = arr2(&[[1.0f32, 2.0], [3.0, 4.0]]);
+        let block = BlockView::from_array_view(arr.view());
+        assert_eq!(block.num_channels(), 2);
+        assert_eq!(block.num_frames(), 2);
+        assert_eq!(block.sample(0, 1), 2.0);
+        assert_eq!(block.sample(1, 0), 3.0);
+    }
 
-        assert_eq!(block.layout(), BufferLayout::Interleaved);
-        assert_eq!(
-            block.view(),
-            BlockView::from_array_view(aview2(&[[0.0, 0.1, 0.2], [1.0, 1.1, 1.2]]))
-        );
-        assert_eq!(block.raw_buffer(), &[0.0, 1.0, 0.1, 1.1, 0.2, 1.2]);
+    #[test]
+    fn test_from_ptr() {
+        let buffer = [1.0f32, 2.0, 3.0, 4.0];
+        let ptr = buffer.as_ptr();
+        let block = unsafe { BlockView::from_ptr(ptr, 2, 2) };
+        assert_eq!(block.num_channels(), 2);
+        assert_eq!(block.num_frames(), 2);
+        assert_eq!(block.sample(0, 0), 1.0);
+        assert_eq!(block.sample(1, 1), 4.0);
+    }
+
+    #[test]
+    fn test_num_channels() {
+        let arr = arr2(&[[1.0f32, 2.0], [3.0, 4.0]]);
+        let block = BlockView::from_array_view(arr.view());
+        assert_eq!(block.num_channels(), 2);
+    }
+
+    #[test]
+    fn test_num_frames() {
+        let arr = arr2(&[[1.0f32, 2.0], [3.0, 4.0]]);
+        let block = BlockView::from_array_view(arr.view());
+        assert_eq!(block.num_frames(), 2);
+    }
+
+    #[test]
+    fn test_sample() {
+        let arr = arr2(&[[10.0f32, 20.0], [30.0, 40.0]]);
+        let block = BlockView::from_array_view(arr.view());
+        assert_eq!(block.sample(0, 1), 20.0);
+        assert_eq!(block.sample(1, 0), 30.0);
+    }
+
+    #[test]
+    fn test_channel() {
+        let arr = arr2(&[[10.0f32, 20.0], [30.0, 40.0]]);
+        let block = BlockView::from_array_view(arr.view());
+        let c0 = block.channel(0);
+        let c1 = block.channel(1);
+        assert_eq!(c0, array![10.0, 20.0]);
+        assert_eq!(c1, array![30.0, 40.0]);
+    }
+
+    #[test]
+    fn test_channels() {
+        let arr = arr2(&[[10.0f32, 20.0], [30.0, 40.0]]);
+        let block = BlockView::from_array_view(arr.view());
+        let chans: Vec<_> = block.channels().collect();
+        assert_eq!(chans.len(), 2);
+        assert_eq!(chans[0], array![10.0, 20.0]);
+        assert_eq!(chans[1], array![30.0, 40.0]);
     }
 }

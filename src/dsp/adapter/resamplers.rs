@@ -1,19 +1,17 @@
-use num::Float;
-use realfft::FftNum;
-
 use crate::{
     audio_block::{Block, BlockRead, BlockView, BlockViewMut, BlockWrite},
     dsp::resampler::{Resampler, ResamplerFixedIn, ResamplerFixedOut},
+    Sample,
 };
 
-pub struct Resamplers<F: Float + FftNum> {
-    input: ResamplerFixedOut<F>,
-    output: ResamplerFixedIn<F>,
-    input_block: Block<F>,
-    output_block: Block<F>,
+pub struct Resamplers<S: Sample> {
+    input: ResamplerFixedOut<S>,
+    output: ResamplerFixedIn<S>,
+    input_block: Block<S>,
+    output_block: Block<S>,
 }
 
-impl<F: Float + FftNum> Resamplers<F> {
+impl<S: Sample> Resamplers<S> {
     pub fn new(
         num_channels: u16,
         system_sample_rate: usize,
@@ -50,14 +48,12 @@ impl<F: Float + FftNum> Resamplers<F> {
         }
     }
 
-    pub fn process_input(&mut self, output: &mut impl BlockWrite<F>) {
-        self.input
-            .process(&self.input_block.view(), output)
-            .unwrap();
+    pub fn process_input(&mut self, output: &mut impl BlockWrite<S>) {
+        self.input.process(&self.input_block, output).unwrap();
         self.input_block.set_num_frames(self.input_frames_next());
     }
 
-    pub fn process_output(&mut self, input: &impl BlockRead<F>) {
+    pub fn process_output(&mut self, input: &impl BlockRead<S>) {
         self.output_block.set_num_frames(self.output_frames_next());
         self.output
             .process(input, &mut self.output_block.view_mut())
@@ -79,11 +75,11 @@ impl<F: Float + FftNum> Resamplers<F> {
         self.output_block.clear();
     }
 
-    pub fn input_block(&mut self) -> BlockViewMut<F> {
+    pub fn input_block(&mut self) -> BlockViewMut<S> {
         self.input_block.view_mut()
     }
 
-    pub fn output_block(&self) -> BlockView<F> {
+    pub fn output_block(&self) -> BlockView<S> {
         self.output_block.view()
     }
 

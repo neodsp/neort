@@ -1,26 +1,25 @@
-use num::Float;
-use realfft::FftNum;
 use resamplers::Resamplers;
 use tools::{find_max_index, impulse_response};
 
 use crate::{
     audio_block::{Block, BlockWrite},
     ringbuffer::{Ringbuffer, RingbufferLocal},
+    Sample,
 };
 
 mod resamplers;
 mod tools;
 
 #[derive(Default)]
-pub struct Adapter<F: Float + FftNum> {
-    input_rb: RingbufferLocal<F>,
-    output_rb: RingbufferLocal<F>,
-    resamplers: Option<Resamplers<F>>,
-    process_block: Block<F>,
+pub struct Adapter<S: Sample> {
+    input_rb: RingbufferLocal<S>,
+    output_rb: RingbufferLocal<S>,
+    resamplers: Option<Resamplers<S>>,
+    process_block: Block<S>,
     user_num_frames: usize,
 }
 
-impl<F: Float + FftNum> Adapter<F> {
+impl<S: Sample> Adapter<S> {
     /// Returns the delay the adaptor is expected to have
     pub fn prepare(
         &mut self,
@@ -54,9 +53,14 @@ impl<F: Float + FftNum> Adapter<F> {
         self.input_rb.prepare(num_channels, max_frames * 10, 0);
         self.output_rb.prepare(num_channels, max_frames * 10, 0);
 
-        let ir = impulse_response(10, system_max_num_frames, num_channels, |block| {
-            self.process(&mut block.view_mut(), |_| {});
-        });
+        let ir = impulse_response(
+            10,
+            system_max_num_frames,
+            num_channels,
+            |block: &mut Block<S>| {
+                self.process(&mut block.view_mut(), |_| {});
+            },
+        );
         self.reset();
 
         // return delay
@@ -65,8 +69,8 @@ impl<F: Float + FftNum> Adapter<F> {
 
     pub fn process(
         &mut self,
-        block: &mut impl BlockWrite<F>,
-        mut process_fn: impl FnMut(&mut Block<F>),
+        block: &mut impl BlockWrite<S>,
+        mut process_fn: impl FnMut(&mut Block<S>),
     ) {
         assert!(self.input_rb.push_block(block));
 
@@ -78,7 +82,7 @@ impl<F: Float + FftNum> Adapter<F> {
 
                 process_fn(&mut self.process_block);
 
-                resamplers.process_output(&self.process_block.view());
+                resamplers.process_output(&self.process_block);
                 assert!(self.output_rb.push_block(&resamplers.output_block()));
             }
         } else {
@@ -88,7 +92,7 @@ impl<F: Float + FftNum> Adapter<F> {
 
                 process_fn(&mut self.process_block);
 
-                assert!(self.output_rb.push_block(&self.process_block.view()));
+                assert!(self.output_rb.push_block(&self.process_block));
             }
         }
 
@@ -110,6 +114,8 @@ impl<F: Float + FftNum> Adapter<F> {
 
 #[cfg(test)]
 mod tests {
+
+    use crate::audio_block::BlockRead;
 
     use super::*;
 

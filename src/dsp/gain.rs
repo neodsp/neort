@@ -1,11 +1,11 @@
 use std::{marker::PhantomData, sync::atomic::Ordering};
 
 use atomic_float::AtomicF32;
-use num::Float;
 
 use crate::{
     audio_block::BlockWrite,
     audio_processor::{AudioSettings, Processor},
+    Sample,
 };
 
 #[allow(unused)]
@@ -14,12 +14,12 @@ pub enum GainParameter {
 }
 
 #[derive(Default)]
-pub struct Gain<F: Float> {
+pub struct Gain<S: Sample> {
     current_gains: Vec<AtomicF32>,
-    _phantom: PhantomData<F>,
+    _phantom: PhantomData<S>,
 }
 
-impl<F: Float> Processor<F> for Gain<F> {
+impl<S: Sample> Processor<S> for Gain<S> {
     type Result = ();
     type Parameter = GainParameter;
 
@@ -37,10 +37,10 @@ impl<F: Float> Processor<F> for Gain<F> {
     }
 
     #[rtsan::nonblocking]
-    fn process(&mut self, block: &mut impl BlockWrite<F>) -> Self::Result {
-        for (ch, mut channel) in block.channels_mut().into_iter().enumerate() {
-            let gain = F::from(self.current_gains[ch].load(Ordering::Relaxed)).unwrap();
-            channel.mapv_inplace(|v| v * gain);
+    fn process(&mut self, audio_block: &mut impl BlockWrite<S>) -> Self::Result {
+        for ch in 0..audio_block.num_channels() {
+            let gain = S::from(self.current_gains[ch as usize].load(Ordering::Relaxed)).unwrap();
+            audio_block.channel_mut(ch).mapv_inplace(|v| v * gain);
         }
     }
 
@@ -72,7 +72,7 @@ mod tests {
 
         gain.process(&mut block.view_mut());
 
-        assert_eq!(block.view().channel(0), aview1(&[2.0, 2.0, 2.0]));
-        assert_eq!(block.view().channel(1), aview1(&[4.0, 4.0, 4.0]));
+        assert_eq!(block.channel(0), aview1(&[2.0, 2.0, 2.0]));
+        assert_eq!(block.channel(1), aview1(&[4.0, 4.0, 4.0]));
     }
 }

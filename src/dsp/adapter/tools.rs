@@ -1,8 +1,9 @@
-use num::Float;
+use crate::{
+    audio_block::{Block, BlockRead},
+    Sample,
+};
 
-use crate::audio_block::{Block, BlockRead, BlockWrite};
-
-pub fn find_max_index<F: Float>(data: &[F]) -> usize {
+pub fn find_max_index<S: Sample>(data: &[S]) -> usize {
     let index_of_max: Option<usize> = data
         .iter()
         .enumerate()
@@ -12,26 +13,26 @@ pub fn find_max_index<F: Float>(data: &[F]) -> usize {
     index_of_max.unwrap()
 }
 
-pub fn impulse_response<F: Float>(
+pub fn impulse_response<S: Sample>(
     num_iterations: usize,
     num_frames: usize,
     num_channels: u16,
-    mut process_fn: impl FnMut(&mut Block<F>),
-) -> Vec<F> {
-    let mut impulse = Block::<F>::new(num_channels, num_frames);
-    impulse.view_mut().channel_mut(0)[0] = F::one();
+    mut process_fn: impl FnMut(&mut Block<S>),
+) -> Vec<S> {
+    let mut impulse = Block::<S>::new(num_channels, num_frames);
+    impulse.channel_mut(0)[0] = S::one();
 
     let mut impulse_response = Vec::new();
     process_fn(&mut impulse);
 
-    for sample in impulse.view().channel(0).iter() {
+    for sample in impulse.channel(0).iter() {
         impulse_response.push(*sample);
     }
 
     for _ in 1..num_iterations {
         impulse.clear();
         process_fn(&mut impulse);
-        for sample in impulse.view().channel(0).iter() {
+        for sample in impulse.channel(0).iter() {
             impulse_response.push(*sample);
         }
     }

@@ -1,19 +1,21 @@
-use num::Float;
 use ringbuf::{
     storage::Heap,
     traits::{Consumer, Observer, Producer},
     LocalRb,
 };
 
-use crate::audio_block::{BlockRead, BlockWrite};
+use crate::{
+    audio_block::{BlockRead, BlockWrite},
+    Sample,
+};
 
 use super::Ringbuffer;
 
-pub struct RingbufferLocal<F: Float> {
-    ringbuffers: Vec<LocalRb<Heap<F>>>,
+pub struct RingbufferLocal<S: Sample> {
+    ringbuffers: Vec<LocalRb<Heap<S>>>,
 }
 
-impl<F: Float> Default for RingbufferLocal<F> {
+impl<S: Sample> Default for RingbufferLocal<S> {
     fn default() -> Self {
         Self {
             ringbuffers: Vec::new(),
@@ -21,7 +23,7 @@ impl<F: Float> Default for RingbufferLocal<F> {
     }
 }
 
-impl<F: Float> Ringbuffer<F> for RingbufferLocal<F> {
+impl<S: Sample> Ringbuffer<S> for RingbufferLocal<S> {
     fn prepare(&mut self, num_channels: u16, frame_capacity: usize, latency: usize) {
         assert!(latency < frame_capacity);
         self.ringbuffers = Vec::with_capacity(num_channels as usize);
@@ -31,7 +33,7 @@ impl<F: Float> Ringbuffer<F> for RingbufferLocal<F> {
 
         for rb in self.ringbuffers.iter_mut() {
             for _ in 0..latency {
-                if rb.try_push(F::zero()).is_err() {
+                if rb.try_push(S::zero()).is_err() {
                     panic!("Ringbuf should be large enough!");
                 }
             }
@@ -39,7 +41,7 @@ impl<F: Float> Ringbuffer<F> for RingbufferLocal<F> {
     }
 
     #[rtsan::nonblocking]
-    fn push_block(&mut self, block: &impl BlockRead<F>) -> bool {
+    fn push_block(&mut self, block: &impl BlockRead<S>) -> bool {
         let mut pushed_all = true;
         let num_frames = block.num_frames();
         for (rb, channel) in self.ringbuffers.iter_mut().zip(block.channels()) {
@@ -52,7 +54,7 @@ impl<F: Float> Ringbuffer<F> for RingbufferLocal<F> {
     }
 
     #[rtsan::nonblocking]
-    fn pop_block(&mut self, block: &mut impl BlockWrite<F>) -> bool {
+    fn pop_block(&mut self, block: &mut impl BlockWrite<S>) -> bool {
         let mut popped_all = true;
         let num_frames = block.num_frames();
         for (rb, mut channel) in self.ringbuffers.iter_mut().zip(block.channels_mut()) {
@@ -96,15 +98,15 @@ mod tests {
 
         rb.prepare(2, 1024, 0);
 
-        let mut block = Block::new(2, 512);
+        let mut block = Block::<f32>::new(2, 512);
 
-        block.view_mut().channel_mut(0).fill(1.0);
-        block.view_mut().channel_mut(1).fill(2.0);
+        block.channel_mut(0).fill(1.0);
+        block.channel_mut(1).fill(2.0);
 
         assert_eq!(rb.num_frames_stored(), 0);
         assert_eq!(rb.num_frames_free(), 1024);
 
-        rb.push_block(&block.view());
+        rb.push_block(&block);
 
         assert_eq!(rb.num_frames_stored(), 512);
         assert_eq!(rb.num_frames_free(), 512);
@@ -113,10 +115,10 @@ mod tests {
             rb.ringbuffers[1].occupied_len()
         );
 
-        block.view_mut().channel_mut(0).fill(3.0);
-        block.view_mut().channel_mut(1).fill(4.0);
+        block.channel_mut(0).fill(3.0);
+        block.channel_mut(1).fill(4.0);
 
-        rb.push_block(&block.view());
+        rb.push_block(&block);
         assert_eq!(rb.num_frames_stored(), 1024);
         assert_eq!(rb.num_frames_free(), 0);
 
@@ -127,15 +129,15 @@ mod tests {
         assert_eq!(rb.num_frames_stored(), 512);
         assert_eq!(rb.num_frames_free(), 512);
 
-        assert_eq!(out_block.view().channel(0), aview1(&[1.0; 512]));
-        assert_eq!(out_block.view().channel(1), aview1(&[2.0; 512]));
+        assert_eq!(out_block.channel(0), aview1(&[1.0; 512]));
+        assert_eq!(out_block.channel(1), aview1(&[2.0; 512]));
 
         let pushed_all = rb.pop_block(&mut out_block.view_mut());
         assert!(pushed_all);
         assert_eq!(rb.num_frames_stored(), 0);
         assert_eq!(rb.num_frames_free(), 1024);
 
-        assert_eq!(out_block.view().channel(0), aview1(&[3.0; 512]));
-        assert_eq!(out_block.view().channel(1), aview1(&[4.0; 512]));
+        assert_eq!(out_block.channel(0), aview1(&[3.0; 512]));
+        assert_eq!(out_block.channel(1), aview1(&[4.0; 512]));
     }
 }

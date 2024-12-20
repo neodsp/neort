@@ -2,7 +2,10 @@
 
 use num::Float;
 
-use crate::audio_block::{BlockRead, BlockWrite};
+use crate::{
+    audio_block::{BlockRead, BlockWrite},
+    Sample,
+};
 
 /// Different window functions that can be used to window the sinc function.
 #[derive(Debug, Clone, Copy)]
@@ -150,9 +153,9 @@ where
         + one)
 }
 
-pub(crate) fn validate_buffers<T: Float>(
-    input: &impl BlockRead<T>,
-    output: &mut impl BlockWrite<T>,
+pub(crate) fn validate_buffers<S: Sample>(
+    input: &impl BlockRead<S>,
+    output: &mut impl BlockWrite<S>,
     channels: u16,
     min_input_frames: usize,
     min_output_frames: usize,

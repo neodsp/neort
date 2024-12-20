@@ -1,6 +1,4 @@
-use num::Float;
-
-use crate::audio_block::BlockWrite;
+use crate::{audio_block::BlockWrite, Sample};
 
 #[allow(unused)]
 pub struct AudioSettings {
@@ -9,7 +7,7 @@ pub struct AudioSettings {
     pub max_num_frames: u32,
 }
 
-pub trait Processor<F: Float> {
+pub trait Processor<S: Sample> {
     type Result;
     type Parameter;
 
@@ -26,7 +24,7 @@ pub trait Processor<F: Float> {
     /// This is meant to be called in a "real-time" audio thread.
     /// Do nothing expensive and nothing blocking here.
     /// It is recommended to sanitize this function with the rtsan crate.
-    fn process(&mut self, block: &mut impl BlockWrite<F>) -> Self::Result;
+    fn process(&mut self, audio_block: &mut impl BlockWrite<S>) -> Self::Result;
 
     /// This can be used to reset states in the processor, like emptying a delay.
     fn reset(&mut self);

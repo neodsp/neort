@@ -4,7 +4,10 @@ use ndarray::ArrayView1;
 use num::Float;
 use realfft::FftNum;
 
-use crate::audio_block::{BlockRead, BlockWrite};
+use crate::{
+    audio_block::{BlockRead, BlockWrite},
+    Sample,
+};
 
 use super::{
     base::FftResampler,
@@ -29,7 +32,7 @@ pub struct ResamplerFixedIn<F: Float + FftNum> {
     resampler: FftResampler<F>,
 }
 
-impl<F: Float + FftNum> ResamplerFixedIn<F> {
+impl<S: Sample> ResamplerFixedIn<S> {
     /// Create a new FftFixedIn.
     ///
     /// Parameters are:
@@ -54,11 +57,11 @@ impl<F: Float + FftNum> ResamplerFixedIn<F> {
         let fft_size_out = fft_chunks * sample_rate_output / gcd;
         let fft_size_in = fft_chunks * sample_rate_input / gcd;
 
-        let resampler = FftResampler::<F>::new(fft_size_in, fft_size_out);
+        let resampler = FftResampler::<S>::new(fft_size_in, fft_size_out);
 
-        let overlaps: Vec<Vec<F>> = vec![vec![F::zero(); fft_size_out]; num_channels as usize];
-        let input_buffers: Vec<Vec<F>> =
-            vec![vec![F::zero(); num_frames_in + fft_size_in]; num_channels as usize];
+        let overlaps: Vec<Vec<S>> = vec![vec![S::zero(); fft_size_out]; num_channels as usize];
+        let input_buffers: Vec<Vec<S>> =
+            vec![vec![S::zero(); num_frames_in + fft_size_in]; num_channels as usize];
 
         let saved_frames = 0;
 
@@ -75,12 +78,12 @@ impl<F: Float + FftNum> ResamplerFixedIn<F> {
     }
 }
 
-impl<F: Float + FftNum> Resampler<F> for ResamplerFixedIn<F> {
+impl<S: Sample> Resampler<S> for ResamplerFixedIn<S> {
     #[rtsan::nonblocking]
     fn process(
         &mut self,
-        input: &impl BlockRead<F>,
-        output: &mut impl BlockWrite<F>,
+        input: &impl BlockRead<S>,
+        output: &mut impl BlockWrite<S>,
     ) -> Result<(usize, usize), ()> {
         let next_saved_frames = self.saved_frames + self.num_frames_in;
         let num_chunks_ready =
@@ -181,10 +184,10 @@ impl<F: Float + FftNum> Resampler<F> for ResamplerFixedIn<F> {
     fn reset(&mut self) {
         self.overlaps
             .iter_mut()
-            .for_each(|ch| ch.iter_mut().for_each(|s| *s = F::zero()));
+            .for_each(|ch| ch.iter_mut().for_each(|s| *s = S::zero()));
         self.input_buffers
             .iter_mut()
-            .for_each(|ch| ch.iter_mut().for_each(|s| *s = F::zero()));
+            .for_each(|ch| ch.iter_mut().for_each(|s| *s = S::zero()));
         self.saved_frames = 0;
     }
 }
@@ -200,16 +203,12 @@ mod tests {
         let mut resampler = ResamplerFixedIn::<f32>::new(44100, 48000, 1024, 1, 2).unwrap();
 
         let mut input = resampler.generate_input_block();
-        input.view_mut().channel_mut(0)[0] = 1.0;
-        input.view_mut().channel_mut(1)[2] = 1.0;
+        input.channel_mut(0)[0] = 1.0;
+        input.channel_mut(1)[2] = 1.0;
         let mut output = resampler.generate_output_block();
 
-        resampler
-            .process(&input.view(), &mut output.view_mut())
-            .unwrap();
-        resampler
-            .process(&input.view(), &mut output.view_mut())
-            .unwrap();
+        resampler.process(&input, &mut output.view_mut()).unwrap();
+        resampler.process(&input, &mut output.view_mut()).unwrap();
 
         let mut rub = rubato::FftFixedIn::<f32>::new(44100, 48000, 1024, 1, 2).unwrap();
         let mut rub_in = rub.input_buffer_allocate(true);
@@ -219,7 +218,7 @@ mod tests {
         let _ = rub.process(&rub_in, None).unwrap();
         let rub_output = rub.process(&rub_in, None).unwrap();
 
-        assert_eq!(output.view().channel(0).to_vec(), rub_output[0]);
-        assert_eq!(output.view().channel(1).to_vec(), rub_output[1]);
+        assert_eq!(output.channel(0).to_vec(), rub_output[0]);
+        assert_eq!(output.channel(1).to_vec(), rub_output[1]);
     }
 }

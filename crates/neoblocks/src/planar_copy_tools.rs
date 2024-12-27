@@ -6,7 +6,7 @@ use crate::{Block, BlockDataConst, BlockDataMut};
 impl<D: BlockDataConst> Block<D> {
     #[nonblocking]
     #[allow(clippy::missing_safety_doc)]
-    pub unsafe fn copy_into_planar_data<V: AsMut<[D::Num]>>(&self, data: &mut [V]) {
+    pub fn copy_into_planar_data<V: AsMut<[D::Num]>>(&self, data: &mut [V]) {
         let num_channels = data.len() as u16;
         let num_frames = data.first_mut().map_or(0, |channel| channel.as_mut().len()) as u32;
         assert_eq!(self.num_channels, num_channels);
@@ -18,7 +18,7 @@ impl<D: BlockDataConst> Block<D> {
 
     #[nonblocking]
     #[allow(clippy::missing_safety_doc)]
-    pub unsafe fn copy_into_planar_data_limited<V: AsMut<[D::Num]>>(
+    pub fn copy_into_planar_data_limited<V: AsMut<[D::Num]>>(
         &self,
         data: &mut [V],
         num_channels: u16,
@@ -93,5 +93,36 @@ impl<D: BlockDataMut> Block<D> {
         for (this_ch, ch_ptr) in self.channel_iter_mut().zip(channel_ptrs) {
             this_ch.copy_from_slice(core::slice::from_raw_parts(*ch_ptr, num_frames as usize));
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::BlockHeap;
+
+    #[test]
+    fn test_planar() {
+        let planar = [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9]];
+        let mut block = BlockHeap::<i32>::new(3, 6);
+        block.copy_from_planar_data(&planar);
+        assert_eq!(block[0], [0, 1, 2, 3, 4]);
+        assert_eq!(block[1], [5, 6, 7, 8, 9]);
+
+        let mut planar = [[0; 5], [0; 5]];
+        block.copy_into_planar_data(&mut planar);
+        assert_eq!(planar[0], [0, 1, 2, 3, 4]);
+        assert_eq!(planar[1], [5, 6, 7, 8, 9]);
+
+        let planar = [[0, 1, 2, 3, 4], [5, 6, 7, 8, 9], [0, 1, 2, 3, 4]];
+        let mut block = BlockHeap::<i32>::new(3, 6);
+        block.copy_from_planar_data_limited(&planar, 2, 4);
+        assert_eq!(block[0], [0, 1, 2, 3]);
+        assert_eq!(block[1], [5, 6, 7, 8]);
+
+        let mut planar = [[0; 5], [0; 5], [0; 5]];
+        block.copy_into_planar_data_limited(&mut planar, 2, 4);
+        assert_eq!(planar[0], [0, 1, 2, 3, 0]);
+        assert_eq!(planar[1], [5, 6, 7, 8, 0]);
+        assert_eq!(planar[2], [0, 0, 0, 0, 0]);
     }
 }

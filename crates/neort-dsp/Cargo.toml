@@ -1,5 +1,5 @@
 [package]
-name = "neort-blocks"
+name = "neort-dsp"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -11,17 +11,11 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
+neort-blocks = { workspace = true }
+
 rtsan = { workspace = true }
+realfft = { workspace = true }
 num = { workspace = true }
 
-[features]
-default = ["alloc"]
-alloc = []
-rtsan = ["rtsan/enable"]
-
 [dev-dependencies]
-criterion = { workspace = true }
-
-[[bench]]
-name = "blocks"
-harness = false
+rubato = "0.16.1"

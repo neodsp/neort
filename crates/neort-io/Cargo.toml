@@ -1,5 +1,5 @@
 [package]
-name = "neort-blocks"
+name = "neort-io"
 version.workspace = true
 edition.workspace = true
 authors.workspace = true
@@ -11,17 +11,3 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-rtsan = { workspace = true }
-num = { workspace = true }
-
-[features]
-default = ["alloc"]
-alloc = []
-rtsan = ["rtsan/enable"]
-
-[dev-dependencies]
-criterion = { workspace = true }
-
-[[bench]]
-name = "blocks"
-harness = false

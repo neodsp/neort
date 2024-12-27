@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/neort-blocks"]
+members = ["crates/neort-blocks", "crates/neort-dsp", "crates/neort-io"]
 
 [workspace.package]
 version = "0.0.0"
@@ -18,6 +18,9 @@ neort-blocks = { path = "crates/neort-blocks" }
 
 rtsan = { git = "https://github.com/realtime-sanitizer/rtsan-standalone-rs", branch = "dev" }
 criterion = "0.5.1"
+realfft = "3.4"
+num = "0.4"
+
 
 [package]
 name = "neort"

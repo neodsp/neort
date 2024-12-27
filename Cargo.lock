@@ -477,11 +477,27 @@ dependencies = [
 
 [[package]]
 name = "neort-blocks"
-version = "0.1.0"
+version = "0.0.0"
 dependencies = [
  "criterion",
+ "num",
  "rtsan",
 ]
+
+[[package]]
+name = "neort-dsp"
+version = "0.0.0"
+dependencies = [
+ "neort-blocks",
+ "num",
+ "realfft",
+ "rtsan",
+ "rubato",
+]
+
+[[package]]
+name = "neort-io"
+version = "0.0.0"
 
 [[package]]
 name = "num"

@@ -7,11 +7,11 @@ impl<D: BlockDataConst> Block<D> {
     #[nonblocking]
     #[allow(clippy::missing_safety_doc)]
     pub fn copy_into_planar_data<V: AsMut<[D::Num]>>(&self, data: &mut [V]) {
-        let num_channels = data.len() as u16;
-        let num_frames = data.first_mut().map_or(0, |channel| channel.as_mut().len()) as u32;
+        let num_channels = data.len();
+        let num_frames = data.first_mut().map_or(0, |channel| channel.as_mut().len());
         assert_eq!(self.num_channels, num_channels);
         assert_eq!(self.num_frames, num_frames);
-        for (this_ch, channel) in self.channel_iter().zip(data) {
+        for (this_ch, channel) in self.channels().zip(data) {
             channel.as_mut().copy_from_slice(this_ch);
         }
     }
@@ -21,14 +21,14 @@ impl<D: BlockDataConst> Block<D> {
     pub fn copy_into_planar_data_limited<V: AsMut<[D::Num]>>(
         &self,
         data: &mut [V],
-        num_channels: u16,
-        num_frames: u32,
+        num_channels: usize,
+        num_frames: usize,
     ) {
-        assert!(num_channels <= data.len() as u16);
+        assert!(num_channels <= data.len());
         assert_eq!(self.num_channels, num_channels);
         assert_eq!(self.num_frames, num_frames);
-        for (this_ch, channel) in self.channel_iter().zip(data) {
-            channel.as_mut()[..num_frames as usize].copy_from_slice(this_ch);
+        for (this_ch, channel) in self.channels().zip(data) {
+            channel.as_mut()[..num_frames].copy_from_slice(this_ch);
         }
     }
 
@@ -37,14 +37,14 @@ impl<D: BlockDataConst> Block<D> {
     pub unsafe fn copy_into_planar_ptr(
         &mut self,
         ptr: *const *mut D::Num,
-        num_channels: u16,
-        num_frames: u32,
+        num_channels: usize,
+        num_frames: usize,
     ) {
         assert_eq!(self.num_channels, num_channels);
         assert_eq!(self.num_frames, num_frames);
-        let channel_ptrs = core::slice::from_raw_parts(ptr, num_channels as usize);
-        for (this_ch, ch_ptr) in self.channel_iter().zip(channel_ptrs) {
-            core::slice::from_raw_parts_mut(*ch_ptr, num_frames as usize).copy_from_slice(this_ch);
+        let channel_ptrs = core::slice::from_raw_parts(ptr, num_channels);
+        for (this_ch, ch_ptr) in self.channels().zip(channel_ptrs) {
+            core::slice::from_raw_parts_mut(*ch_ptr, num_frames).copy_from_slice(this_ch);
         }
     }
 }
@@ -54,11 +54,11 @@ impl<D: BlockDataMut> Block<D> {
     #[nonblocking]
     #[allow(clippy::missing_safety_doc)]
     pub fn copy_from_planar_data<V: AsRef<[D::Num]>>(&mut self, data: &[V]) {
-        let num_channels = data.len() as u16;
-        let num_frames = data.first().map_or(0, |channel| channel.as_ref().len()) as u32;
+        let num_channels = data.len();
+        let num_frames = data.first().map_or(0, |channel| channel.as_ref().len());
         self.set_num_channels_visible(num_channels);
         self.set_num_frames_visible(num_frames);
-        for (this_ch, channel) in self.channel_iter_mut().zip(data) {
+        for (this_ch, channel) in self.channels_mut().zip(data) {
             this_ch.copy_from_slice(channel.as_ref());
         }
     }
@@ -68,14 +68,14 @@ impl<D: BlockDataMut> Block<D> {
     pub fn copy_from_planar_data_limited<V: AsRef<[D::Num]>>(
         &mut self,
         data: &[V],
-        num_channels: u16,
-        num_frames: u32,
+        num_channels: usize,
+        num_frames: usize,
     ) {
-        assert!(num_channels as usize <= data.len());
+        assert!(num_channels <= data.len());
         self.set_num_channels_visible(num_channels);
         self.set_num_frames_visible(num_frames);
-        for (this_ch, channel) in self.channel_iter_mut().zip(data) {
-            this_ch.copy_from_slice(&channel.as_ref()[..num_frames as usize]);
+        for (this_ch, channel) in self.channels_mut().zip(data) {
+            this_ch.copy_from_slice(&channel.as_ref()[..num_frames]);
         }
     }
 
@@ -84,14 +84,14 @@ impl<D: BlockDataMut> Block<D> {
     pub unsafe fn copy_from_planar_ptr(
         &mut self,
         ptr: *const *const D::Num,
-        num_channels: u16,
-        num_frames: u32,
+        num_channels: usize,
+        num_frames: usize,
     ) {
         self.set_num_channels_visible(num_channels);
         self.set_num_frames_visible(num_frames);
-        let channel_ptrs = core::slice::from_raw_parts(ptr, num_channels as usize);
-        for (this_ch, ch_ptr) in self.channel_iter_mut().zip(channel_ptrs) {
-            this_ch.copy_from_slice(core::slice::from_raw_parts(*ch_ptr, num_frames as usize));
+        let channel_ptrs = core::slice::from_raw_parts(ptr, num_channels);
+        for (this_ch, ch_ptr) in self.channels_mut().zip(channel_ptrs) {
+            this_ch.copy_from_slice(core::slice::from_raw_parts(*ch_ptr, num_frames));
         }
     }
 }

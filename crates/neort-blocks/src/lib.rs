@@ -12,13 +12,14 @@ use core::{
 use alloc::alloc::{alloc_zeroed, Layout};
 
 pub use block_data::*;
+use num::Zero;
 use rtsan::nonblocking;
 
 pub mod block_data;
 pub mod planar_copy_tools;
 
-pub trait Number: Copy + Default + PartialEq + 'static {}
-impl<T: Copy + Default + PartialEq + 'static> Number for T {}
+pub trait Number: Copy + Zero + PartialEq {}
+impl<T: Copy + Zero + PartialEq> Number for T {}
 
 #[cfg(feature = "alloc")]
 pub type BlockHeap<T> = Block<Heap<T>>;
@@ -28,19 +29,19 @@ pub type BlockViewMut<'a, T> = Block<ViewMut<'a, T>>;
 
 pub struct Block<D: BlockDataConst> {
     data: D,
-    num_channels: u16,
-    num_frames: u32,
-    channel_cap: u16,
-    frame_cap: u32,
+    num_channels: usize,
+    num_frames: usize,
+    channel_cap: usize,
+    frame_cap: usize,
 }
 
 impl<T: Number, const CAPACITY: usize> BlockStack<T, CAPACITY> {
     #[nonblocking]
-    pub fn new(num_channels: u16, num_frames: u32) -> Self {
-        assert!(num_channels as usize * num_frames as usize <= CAPACITY);
+    pub fn new(num_channels: usize, num_frames: usize) -> Self {
+        assert!(num_channels * num_frames <= CAPACITY);
         Self {
             data: Stack {
-                data: [T::default(); CAPACITY],
+                data: [T::zero(); CAPACITY],
             },
             num_channels,
             num_frames,
@@ -52,8 +53,8 @@ impl<T: Number, const CAPACITY: usize> BlockStack<T, CAPACITY> {
 
 #[cfg(feature = "alloc")]
 impl<T: Number> BlockHeap<T> {
-    pub fn new(num_channels: u16, num_frames: u32) -> Self {
-        let capacity = num_channels as usize * num_frames as usize;
+    pub fn new(num_channels: usize, num_frames: usize) -> Self {
+        let capacity = num_channels * num_frames;
         let layout = Layout::array::<T>(capacity).unwrap();
         let ptr = unsafe { alloc_zeroed(layout) as *mut T };
         Self {
@@ -68,19 +69,19 @@ impl<T: Number> BlockHeap<T> {
 
 impl<'a, T: Number> BlockView<'a, T> {
     #[nonblocking]
-    pub fn from_slice(slice: &'a [T], num_channels: u16, num_frames: u32) -> Self {
+    pub fn from_slice(slice: &'a [T], num_channels: usize, num_frames: usize) -> Self {
         Self::from_slice_limited(slice, num_channels, num_frames, num_channels, num_frames)
     }
 
     #[nonblocking]
     pub fn from_slice_limited(
         slice: &'a [T],
-        num_channels: u16,
-        num_frames: u32,
-        channel_cap: u16,
-        frame_cap: u32,
+        num_channels: usize,
+        num_frames: usize,
+        channel_cap: usize,
+        frame_cap: usize,
     ) -> Self {
-        assert_eq!(slice.len(), channel_cap as usize * frame_cap as usize);
+        assert_eq!(slice.len(), channel_cap * frame_cap);
         Self::from_ptr_limited(
             slice.as_ptr(),
             num_channels,
@@ -93,17 +94,17 @@ impl<'a, T: Number> BlockView<'a, T> {
     #[nonblocking]
     pub fn from_ptr_limited(
         ptr: *const T,
-        num_channels: u16,
-        num_frames: u32,
-        channel_cap: u16,
-        frame_cap: u32,
+        num_channels: usize,
+        num_frames: usize,
+        channel_cap: usize,
+        frame_cap: usize,
     ) -> Self {
         assert!(num_channels <= channel_cap);
         assert!(num_frames <= frame_cap);
         Self {
             data: View {
                 ptr,
-                capacity: channel_cap as usize * frame_cap as usize,
+                capacity: channel_cap * frame_cap,
                 _phantom: PhantomData::<&'a T>,
             },
             num_channels,
@@ -116,19 +117,19 @@ impl<'a, T: Number> BlockView<'a, T> {
 
 impl<'a, T: Number> BlockViewMut<'a, T> {
     #[nonblocking]
-    pub fn from_slice(slice: &'a mut [T], num_channels: u16, num_frames: u32) -> Self {
+    pub fn from_slice(slice: &'a mut [T], num_channels: usize, num_frames: usize) -> Self {
         Self::from_slice_limited(slice, num_channels, num_frames, num_channels, num_frames)
     }
 
     #[nonblocking]
     pub fn from_slice_limited(
         slice: &'a mut [T],
-        num_channels: u16,
-        num_frames: u32,
-        channel_cap: u16,
-        frame_cap: u32,
+        num_channels: usize,
+        num_frames: usize,
+        channel_cap: usize,
+        frame_cap: usize,
     ) -> Self {
-        assert_eq!(slice.len(), channel_cap as usize * frame_cap as usize);
+        assert_eq!(slice.len(), channel_cap * frame_cap);
         Self::from_ptr_limited(
             slice.as_mut_ptr(),
             num_channels,
@@ -141,17 +142,17 @@ impl<'a, T: Number> BlockViewMut<'a, T> {
     #[nonblocking]
     pub fn from_ptr_limited(
         ptr: *mut T,
-        num_channels: u16,
-        num_frames: u32,
-        channel_cap: u16,
-        frame_cap: u32,
+        num_channels: usize,
+        num_frames: usize,
+        channel_cap: usize,
+        frame_cap: usize,
     ) -> Self {
         assert!(num_channels <= channel_cap);
         assert!(num_frames <= frame_cap);
         Self {
             data: ViewMut {
                 ptr,
-                capacity: channel_cap as usize * frame_cap as usize,
+                capacity: channel_cap * frame_cap,
                 _phantom: PhantomData::<&'a mut T>,
             },
             num_channels,
@@ -171,7 +172,7 @@ where
             "Block (channels: {}, frames: {})\n",
             self.num_channels, self.num_frames
         ))?;
-        for (i, channel) in self.channel_iter().enumerate() {
+        for (i, channel) in self.channels().enumerate() {
             f.write_fmt(format_args!("Channel {}: {:?}\n", i, channel))?;
         }
         Ok(())
@@ -180,31 +181,41 @@ where
 
 impl<D: BlockDataConst> Block<D> {
     #[nonblocking]
+    pub fn num_channels(&self) -> usize {
+        self.num_channels
+    }
+
+    #[nonblocking]
+    pub fn num_frames(&self) -> usize {
+        self.num_frames
+    }
+
+    #[nonblocking]
     pub fn raw_data(&self) -> &[D::Num] {
         unsafe { core::slice::from_raw_parts(self.data.as_ptr(), self.data.capacity()) }
     }
 
     #[nonblocking]
-    pub fn sample(&self, channel: u16, frame: u32) -> &D::Num {
+    pub fn sample(&self, channel: usize, frame: usize) -> &D::Num {
         assert!(channel < self.num_channels);
         assert!(frame < self.num_frames);
-        let index = channel as usize * self.frame_cap as usize + frame as usize;
+        let index = channel * self.frame_cap + frame;
         unsafe { &*self.data.as_ptr().add(index) }
     }
 
     #[nonblocking]
-    pub fn channel(&self, channel: u16) -> &[D::Num] {
+    pub fn channel(&self, channel: usize) -> &[D::Num] {
         assert!(channel < self.num_channels);
-        let start = channel as usize * self.frame_cap as usize;
-        let len = self.num_frames as usize;
+        let start = channel * self.frame_cap;
+        let len = self.num_frames;
         unsafe { core::slice::from_raw_parts(self.data.as_ptr().add(start), len) }
     }
 
     #[nonblocking]
-    pub fn channel_iter(&self) -> impl Iterator<Item = &[D::Num]> {
+    pub fn channels(&self) -> impl Iterator<Item = &[D::Num]> {
         (0..self.num_channels).map(|ch| {
-            let start = ch as usize * self.frame_cap as usize;
-            let len = self.num_frames as usize;
+            let start = ch * self.frame_cap;
+            let len = self.num_frames;
             unsafe { core::slice::from_raw_parts(self.data.as_ptr().add(start), len) }
         })
     }
@@ -227,13 +238,13 @@ impl<D: BlockDataConst> Block<D> {
 
 impl<D: BlockDataMut> Block<D> {
     #[nonblocking]
-    pub fn set_num_channels_visible(&mut self, num_channels: u16) {
+    pub fn set_num_channels_visible(&mut self, num_channels: usize) {
         assert!(num_channels <= self.channel_cap);
         self.num_channels = num_channels;
     }
 
     #[nonblocking]
-    pub fn set_num_frames_visible(&mut self, num_frames: u32) {
+    pub fn set_num_frames_visible(&mut self, num_frames: usize) {
         assert!(num_frames <= self.frame_cap);
         self.num_frames = num_frames;
     }
@@ -244,26 +255,26 @@ impl<D: BlockDataMut> Block<D> {
     }
 
     #[nonblocking]
-    pub fn sample_mut(&mut self, channel: u16, frame: u32) -> &mut D::Num {
+    pub fn sample_mut(&mut self, channel: usize, frame: usize) -> &mut D::Num {
         assert!(channel < self.num_channels);
         assert!(frame < self.num_frames);
-        let index = channel as usize * self.frame_cap as usize + frame as usize;
+        let index = channel * self.frame_cap + frame;
         unsafe { &mut *self.data.as_mut_ptr().add(index) }
     }
 
     #[nonblocking]
-    pub fn channel_mut(&mut self, channel: u16) -> &mut [D::Num] {
+    pub fn channel_mut(&mut self, channel: usize) -> &mut [D::Num] {
         assert!(channel < self.num_channels);
-        let start = channel as usize * self.frame_cap as usize;
-        let len = self.num_frames as usize;
+        let start = channel * self.frame_cap;
+        let len = self.num_frames;
         unsafe { core::slice::from_raw_parts_mut(self.data.as_mut_ptr().add(start), len) }
     }
 
     #[nonblocking]
-    pub fn channel_iter_mut(&mut self) -> impl Iterator<Item = &mut [D::Num]> {
+    pub fn channels_mut(&mut self) -> impl Iterator<Item = &mut [D::Num]> {
         (0..self.num_channels).map(|ch| {
-            let start = ch as usize * self.frame_cap as usize;
-            let len = self.num_frames as usize;
+            let start = ch * self.frame_cap;
+            let len = self.num_frames;
             unsafe { core::slice::from_raw_parts_mut(self.data.as_mut_ptr().add(start), len) }
         })
     }
@@ -272,9 +283,14 @@ impl<D: BlockDataMut> Block<D> {
     pub fn copy_from_block<DO: BlockDataConst<Num = D::Num>>(&mut self, other: &Block<DO>) {
         self.set_num_channels_visible(other.num_channels);
         self.set_num_frames_visible(other.num_frames);
-        for (this_ch, other_ch) in self.channel_iter_mut().zip(other.channel_iter()) {
+        for (this_ch, other_ch) in self.channels_mut().zip(other.channels()) {
             this_ch.copy_from_slice(other_ch);
         }
+    }
+
+    #[nonblocking]
+    pub fn clear(&mut self) {
+        self.raw_data_mut().fill(D::Num::zero());
     }
 
     #[nonblocking]
@@ -293,30 +309,30 @@ impl<D: BlockDataMut> Block<D> {
     }
 }
 
-impl<D: BlockDataConst> Index<(u16, u32)> for Block<D> {
+impl<D: BlockDataConst> Index<(usize, usize)> for Block<D> {
     type Output = D::Num;
 
-    fn index(&self, index: (u16, u32)) -> &Self::Output {
+    fn index(&self, index: (usize, usize)) -> &Self::Output {
         self.sample(index.0, index.1)
     }
 }
 
-impl<D: BlockDataMut> IndexMut<(u16, u32)> for Block<D> {
-    fn index_mut(&mut self, index: (u16, u32)) -> &mut Self::Output {
+impl<D: BlockDataMut> IndexMut<(usize, usize)> for Block<D> {
+    fn index_mut(&mut self, index: (usize, usize)) -> &mut Self::Output {
         self.sample_mut(index.0, index.1)
     }
 }
 
-impl<D: BlockDataConst> Index<u16> for Block<D> {
+impl<D: BlockDataConst> Index<usize> for Block<D> {
     type Output = [D::Num];
 
-    fn index(&self, index: u16) -> &Self::Output {
+    fn index(&self, index: usize) -> &Self::Output {
         self.channel(index)
     }
 }
 
-impl<D: BlockDataMut> IndexMut<u16> for Block<D> {
-    fn index_mut(&mut self, index: u16) -> &mut Self::Output {
+impl<D: BlockDataMut> IndexMut<usize> for Block<D> {
+    fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         self.channel_mut(index)
     }
 }
@@ -326,8 +342,8 @@ impl<D1: BlockDataConst, D2: BlockDataConst<Num = D1::Num>> PartialEq<Block<D2>>
         if self.num_channels != other.num_channels || self.num_frames != other.num_frames {
             return false;
         }
-        self.channel_iter()
-            .zip(other.channel_iter())
+        self.channels()
+            .zip(other.channels())
             .all(|(this_ch, other_ch)| this_ch == other_ch)
     }
 }
@@ -394,12 +410,12 @@ mod tests {
     #[test]
     fn test_channel_iters() {
         let mut block = BlockHeap::<usize>::new(2, 3);
-        for (ch_idx, channel) in block.channel_iter_mut().enumerate() {
+        for (ch_idx, channel) in block.channels_mut().enumerate() {
             channel.fill(ch_idx + 1);
         }
         assert_eq!(block.raw_data(), &[1, 1, 1, 2, 2, 2]);
 
-        for (ch_idx, channel) in block.channel_iter().enumerate() {
+        for (ch_idx, channel) in block.channels().enumerate() {
             assert_eq!(channel, &[ch_idx + 1; 3]);
         }
     }
@@ -420,7 +436,7 @@ mod tests {
         let mut block = BlockHeap::<usize>::new(2, 3);
         {
             let mut view_mut = block.view_mut();
-            for (ch_idx, channel) in view_mut.channel_iter_mut().enumerate() {
+            for (ch_idx, channel) in view_mut.channels_mut().enumerate() {
                 channel.fill(ch_idx + 1);
             }
 

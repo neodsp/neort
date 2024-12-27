@@ -6,7 +6,7 @@ pub fn blocks(c: &mut Criterion) {
     c.bench_function("view", |b| b.iter(|| black_box(block.view())));
 
     c.bench_function("channel iter", |b| {
-        b.iter(|| block.channel_iter_mut().for_each(|ch| ch.fill(2.0)))
+        b.iter(|| block.channels_mut().for_each(|ch| ch.fill(2.0)))
     });
 }
 

@@ -3,10 +3,10 @@ use core::marker::PhantomData;
 #[cfg(feature = "alloc")]
 use alloc::alloc::{dealloc, Layout};
 
-use crate::Number;
+use crate::Num;
 
 pub trait BlockDataConst {
-    type Num: Number;
+    type Num: Num;
     fn capacity(&self) -> usize;
     fn as_ptr(&self) -> *const Self::Num;
 }
@@ -37,7 +37,7 @@ pub struct ViewMut<'a, T> {
     pub(crate) _phantom: PhantomData<&'a mut T>,
 }
 
-impl<T: Number, const CAPACITY: usize> BlockDataConst for Stack<T, CAPACITY> {
+impl<T: Num, const CAPACITY: usize> BlockDataConst for Stack<T, CAPACITY> {
     type Num = T;
 
     #[inline]
@@ -51,7 +51,7 @@ impl<T: Number, const CAPACITY: usize> BlockDataConst for Stack<T, CAPACITY> {
     }
 }
 
-impl<T: Number, const CAPACITY: usize> BlockDataMut for Stack<T, CAPACITY> {
+impl<T: Num, const CAPACITY: usize> BlockDataMut for Stack<T, CAPACITY> {
     #[inline]
     fn as_mut_ptr(&mut self) -> *mut T {
         self.data.as_mut_ptr()
@@ -59,7 +59,7 @@ impl<T: Number, const CAPACITY: usize> BlockDataMut for Stack<T, CAPACITY> {
 }
 
 #[cfg(feature = "alloc")]
-impl<T: Number> BlockDataConst for Heap<T> {
+impl<T: Num> BlockDataConst for Heap<T> {
     type Num = T;
 
     #[inline]
@@ -74,7 +74,7 @@ impl<T: Number> BlockDataConst for Heap<T> {
 }
 
 #[cfg(feature = "alloc")]
-impl<T: Number> BlockDataMut for Heap<T> {
+impl<T: Num> BlockDataMut for Heap<T> {
     #[inline]
     fn as_mut_ptr(&mut self) -> *mut T {
         self.ptr
@@ -91,7 +91,7 @@ impl<T> Drop for Heap<T> {
     }
 }
 
-impl<T: Number> BlockDataConst for View<'_, T> {
+impl<T: Num> BlockDataConst for View<'_, T> {
     type Num = T;
 
     #[inline]
@@ -105,7 +105,7 @@ impl<T: Number> BlockDataConst for View<'_, T> {
     }
 }
 
-impl<T: Number> BlockDataConst for ViewMut<'_, T> {
+impl<T: Num> BlockDataConst for ViewMut<'_, T> {
     type Num = T;
 
     #[inline]
@@ -119,7 +119,7 @@ impl<T: Number> BlockDataConst for ViewMut<'_, T> {
     }
 }
 
-impl<T: Number> BlockDataMut for ViewMut<'_, T> {
+impl<T: Num> BlockDataMut for ViewMut<'_, T> {
     #[inline]
     fn as_mut_ptr(&mut self) -> *mut T {
         self.ptr

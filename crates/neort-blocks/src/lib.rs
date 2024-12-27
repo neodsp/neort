@@ -18,8 +18,8 @@ use rtsan::nonblocking;
 pub mod block_data;
 pub mod planar_copy_tools;
 
-pub trait Number: Copy + Zero + PartialEq {}
-impl<T: Copy + Zero + PartialEq> Number for T {}
+pub trait Num: Copy + Zero + PartialEq {}
+impl<T: Copy + Zero + PartialEq> Num for T {}
 
 #[cfg(feature = "alloc")]
 pub type BlockHeap<T> = Block<Heap<T>>;
@@ -35,7 +35,7 @@ pub struct Block<D: BlockDataConst> {
     frame_cap: usize,
 }
 
-impl<T: Number, const CAPACITY: usize> BlockStack<T, CAPACITY> {
+impl<T: Num, const CAPACITY: usize> BlockStack<T, CAPACITY> {
     #[nonblocking]
     pub fn new(num_channels: usize, num_frames: usize) -> Self {
         assert!(num_channels * num_frames <= CAPACITY);
@@ -52,7 +52,7 @@ impl<T: Number, const CAPACITY: usize> BlockStack<T, CAPACITY> {
 }
 
 #[cfg(feature = "alloc")]
-impl<T: Number> BlockHeap<T> {
+impl<T: Num> BlockHeap<T> {
     pub fn new(num_channels: usize, num_frames: usize) -> Self {
         let capacity = num_channels * num_frames;
         let layout = Layout::array::<T>(capacity).unwrap();
@@ -67,7 +67,23 @@ impl<T: Number> BlockHeap<T> {
     }
 }
 
-impl<'a, T: Number> BlockView<'a, T> {
+#[cfg(feature = "alloc")]
+impl<T: Num> Default for BlockHeap<T> {
+    fn default() -> Self {
+        let capacity = 0;
+        let layout = Layout::array::<T>(capacity).unwrap();
+        let ptr = unsafe { alloc_zeroed(layout) as *mut T };
+        Self {
+            data: Heap { ptr, capacity },
+            num_frames: 0,
+            num_channels: 0,
+            channel_cap: 0,
+            frame_cap: 0,
+        }
+    }
+}
+
+impl<'a, T: Num> BlockView<'a, T> {
     #[nonblocking]
     pub fn from_slice(slice: &'a [T], num_channels: usize, num_frames: usize) -> Self {
         Self::from_slice_limited(slice, num_channels, num_frames, num_channels, num_frames)
@@ -115,7 +131,7 @@ impl<'a, T: Number> BlockView<'a, T> {
     }
 }
 
-impl<'a, T: Number> BlockViewMut<'a, T> {
+impl<'a, T: Num> BlockViewMut<'a, T> {
     #[nonblocking]
     pub fn from_slice(slice: &'a mut [T], num_channels: usize, num_frames: usize) -> Self {
         Self::from_slice_limited(slice, num_channels, num_frames, num_channels, num_frames)

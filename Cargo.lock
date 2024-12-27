@@ -491,6 +491,7 @@ dependencies = [
  "neort-blocks",
  "num",
  "realfft",
+ "ringbuf",
  "rtsan",
  "rubato",
 ]

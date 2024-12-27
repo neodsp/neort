@@ -1,7 +1,8 @@
 // The resamplers are copied from rubato by Henrik Enquist and adapted to take Blocks
 
 use neort_blocks::{BlockHeap, BlockView, BlockViewMut};
-use num::Float;
+
+use crate::Float;
 
 /// Different window functions that can be used to window the sinc function.
 #[derive(Debug, Clone, Copy)]

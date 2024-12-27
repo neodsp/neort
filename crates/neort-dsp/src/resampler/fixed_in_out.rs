@@ -1,8 +1,8 @@
 // The resamplers are copied from rubato by Henrik Enquist and adapted to take Blocks
 
 use neort_blocks::{BlockHeap, BlockView, BlockViewMut};
-use num::Float;
-use realfft::FftNum;
+
+use crate::Float;
 
 use super::{
     base::FftResampler,
@@ -16,7 +16,7 @@ use super::{
 /// The resampling is done by FFT:ing the input data. The spectrum is then extended or
 /// truncated as well as multiplied with an antialiasing filter
 /// before it's inverse transformed to get the resampled waveforms.
-pub struct ResamplerFixedInOut<F: Float + FftNum> {
+pub struct ResamplerFixedInOut<F: Float> {
     num_channels: usize,
     num_frames_in: usize,
     num_frames_out: usize,
@@ -25,7 +25,7 @@ pub struct ResamplerFixedInOut<F: Float + FftNum> {
     resampler: FftResampler<F>,
 }
 
-impl<F: Float + FftNum> ResamplerFixedInOut<F> {
+impl<F: Float> ResamplerFixedInOut<F> {
     /// Create a new FftFixedInOut.
     ///
     /// Parameters are:
@@ -63,7 +63,7 @@ impl<F: Float + FftNum> ResamplerFixedInOut<F> {
     }
 }
 
-impl<F: Float + FftNum> Resampler<F> for ResamplerFixedInOut<F> {
+impl<F: Float> Resampler<F> for ResamplerFixedInOut<F> {
     #[rtsan::nonblocking]
     fn process(
         &mut self,

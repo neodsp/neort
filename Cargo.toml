@@ -19,6 +19,7 @@ neort-blocks = { path = "crates/neort-blocks" }
 rtsan = { git = "https://github.com/realtime-sanitizer/rtsan-standalone-rs", branch = "dev" }
 criterion = "0.5.1"
 realfft = "3.4"
+ringbuf = "0.4"
 num = "0.4"
 
 

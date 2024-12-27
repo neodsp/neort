@@ -2,9 +2,11 @@
 
 use std::sync::Arc;
 
-use num::{Complex, Float, Zero};
+use num::{Complex, Zero};
 use realfft::{ComplexToReal, FftNum, RealFftPlanner, RealToComplex};
 use rtsan::nonblocking;
+
+use crate::Float;
 
 use super::utils::{calculate_cutoff, make_sincs, WindowFunction};
 

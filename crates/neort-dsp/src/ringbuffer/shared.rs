@@ -1,21 +1,19 @@
+use neort_blocks::{BlockView, BlockViewMut};
 use ringbuf::{
     storage::Heap,
     traits::{Consumer, Observer, Producer},
     SharedRb,
 };
 
-use crate::{
-    audio_block::{BlockRead, BlockWrite},
-    Sample,
-};
+use crate::Float;
 
 use super::Ringbuffer;
 
-pub struct RingbufferShared<S: Sample> {
-    ringbuffers: Vec<SharedRb<Heap<S>>>,
+pub struct RingbufferLocal<F: Float> {
+    ringbuffers: Vec<SharedRb<Heap<F>>>,
 }
 
-impl<S: Sample> Default for RingbufferShared<S> {
+impl<F: Float> Default for RingbufferLocal<F> {
     fn default() -> Self {
         Self {
             ringbuffers: Vec::new(),
@@ -23,17 +21,17 @@ impl<S: Sample> Default for RingbufferShared<S> {
     }
 }
 
-impl<S: Sample> Ringbuffer<S> for RingbufferShared<S> {
-    fn prepare(&mut self, num_channels: u16, frame_capacity: usize, latency: usize) {
+impl<F: Float> Ringbuffer<F> for RingbufferLocal<F> {
+    fn prepare(&mut self, num_channels: usize, frame_capacity: usize, latency: usize) {
         assert!(latency < frame_capacity);
-        self.ringbuffers = Vec::with_capacity(num_channels as usize);
+        self.ringbuffers = Vec::with_capacity(num_channels);
         for _ in 0..num_channels {
             self.ringbuffers.push(SharedRb::new(frame_capacity));
         }
 
         for rb in self.ringbuffers.iter_mut() {
             for _ in 0..latency {
-                if rb.try_push(S::zero()).is_err() {
+                if rb.try_push(F::zero()).is_err() {
                     panic!("Ringbuf should be large enough!");
                 }
             }
@@ -41,11 +39,11 @@ impl<S: Sample> Ringbuffer<S> for RingbufferShared<S> {
     }
 
     #[rtsan::nonblocking]
-    fn push_block(&mut self, block: &impl BlockRead<S>) -> bool {
+    fn push_block(&mut self, block: BlockView<F>) -> bool {
         let mut pushed_all = true;
         let num_frames = block.num_frames();
         for (rb, channel) in self.ringbuffers.iter_mut().zip(block.channels()) {
-            let num_pushed = rb.push_iter(channel.iter().take(num_frames).copied());
+            let num_pushed = rb.push_iter(channel.iter().copied());
             if num_pushed != num_frames {
                 pushed_all = false;
             }
@@ -54,16 +52,15 @@ impl<S: Sample> Ringbuffer<S> for RingbufferShared<S> {
     }
 
     #[rtsan::nonblocking]
-    fn pop_block(&mut self, block: &mut impl BlockWrite<S>) -> bool {
+    fn pop_block(&mut self, mut block: BlockViewMut<F>) -> bool {
         let mut popped_all = true;
         let num_frames = block.num_frames();
-        for (rb, mut channel) in self.ringbuffers.iter_mut().zip(block.channels_mut()) {
+        for (rb, channel) in self.ringbuffers.iter_mut().zip(block.channels_mut()) {
             if rb.occupied_len() < num_frames {
                 popped_all = false;
             }
             channel
                 .iter_mut()
-                .take(num_frames)
                 .zip(rb.pop_iter())
                 .for_each(|(c, r)| *c = r);
         }
@@ -87,19 +84,17 @@ impl<S: Sample> Ringbuffer<S> for RingbufferShared<S> {
 
 #[cfg(test)]
 mod tests {
-    use ndarray::aview1;
-
-    use crate::audio_block::Block;
+    use neort_blocks::BlockHeap;
 
     use super::*;
 
     #[test]
-    fn shared_rb() {
-        let mut rb = RingbufferShared::<f32>::default();
+    fn local_rb() {
+        let mut rb = RingbufferLocal::<f32>::default();
 
         rb.prepare(2, 1024, 0);
 
-        let mut block = Block::new(2, 512);
+        let mut block = BlockHeap::<f32>::new(2, 512);
 
         block.channel_mut(0).fill(1.0);
         block.channel_mut(1).fill(2.0);
@@ -107,34 +102,38 @@ mod tests {
         assert_eq!(rb.num_frames_stored(), 0);
         assert_eq!(rb.num_frames_free(), 1024);
 
-        rb.push_block(&block);
+        rb.push_block(block.view());
 
         assert_eq!(rb.num_frames_stored(), 512);
         assert_eq!(rb.num_frames_free(), 512);
+        assert_eq!(
+            rb.ringbuffers[0].occupied_len(),
+            rb.ringbuffers[1].occupied_len()
+        );
 
         block.channel_mut(0).fill(3.0);
         block.channel_mut(1).fill(4.0);
 
-        rb.push_block(&block);
+        rb.push_block(block.view());
         assert_eq!(rb.num_frames_stored(), 1024);
         assert_eq!(rb.num_frames_free(), 0);
 
-        let mut out_block = Block::new(2, 512);
+        let mut out_block = BlockHeap::new(2, 512);
 
-        let popped_all = rb.pop_block(&mut out_block.view_mut());
+        let popped_all = rb.pop_block(out_block.view_mut());
         assert!(popped_all);
         assert_eq!(rb.num_frames_stored(), 512);
         assert_eq!(rb.num_frames_free(), 512);
 
-        assert_eq!(out_block.channel(0), aview1(&[1.0; 512]));
-        assert_eq!(out_block.channel(1), aview1(&[2.0; 512]));
+        assert_eq!(out_block.channel(0), &[1.0; 512]);
+        assert_eq!(out_block.channel(1), &[2.0; 512]);
 
-        let pushed_all = rb.pop_block(&mut out_block.view_mut());
+        let pushed_all = rb.pop_block(out_block.view_mut());
         assert!(pushed_all);
         assert_eq!(rb.num_frames_stored(), 0);
         assert_eq!(rb.num_frames_free(), 1024);
 
-        assert_eq!(out_block.channel(0), aview1(&[3.0; 512]));
-        assert_eq!(out_block.channel(1), aview1(&[4.0; 512]));
+        assert_eq!(out_block.channel(0), &[3.0; 512]);
+        assert_eq!(out_block.channel(1), &[4.0; 512]);
     }
 }

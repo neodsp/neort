@@ -1,8 +1,8 @@
 // The resamplers are copied from rubato by Henrik Enquist and adapted to take Blocks
 
 use neort_blocks::{BlockHeap, BlockView, BlockViewMut};
-use num::Float;
-use realfft::FftNum;
+
+use crate::Float;
 
 use super::{
     base::FftResampler,
@@ -27,7 +27,7 @@ pub struct ResamplerFixedIn<F: Float> {
     resampler: FftResampler<F>,
 }
 
-impl<F: Float + FftNum> ResamplerFixedIn<F> {
+impl<F: Float> ResamplerFixedIn<F> {
     /// Create a new FftFixedIn.
     ///
     /// Parameters are:
@@ -73,7 +73,7 @@ impl<F: Float + FftNum> ResamplerFixedIn<F> {
     }
 }
 
-impl<F: Float + FftNum> Resampler<F> for ResamplerFixedIn<F> {
+impl<F: Float> Resampler<F> for ResamplerFixedIn<F> {
     #[rtsan::nonblocking]
     fn process(
         &mut self,

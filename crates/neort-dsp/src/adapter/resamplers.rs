@@ -1,19 +1,20 @@
+use neort_blocks::{BlockHeap, BlockView, BlockViewMut};
+
 use crate::{
-    audio_block::{Block, BlockRead, BlockView, BlockViewMut, BlockWrite},
-    dsp::resampler::{Resampler, ResamplerFixedIn, ResamplerFixedOut},
-    Sample,
+    resampler::{fixed_in::ResamplerFixedIn, fixed_out::ResamplerFixedOut, Resampler},
+    Float,
 };
 
-pub struct Resamplers<S: Sample> {
-    input: ResamplerFixedOut<S>,
-    output: ResamplerFixedIn<S>,
-    input_block: Block<S>,
-    output_block: Block<S>,
+pub struct Resamplers<F: Float> {
+    input: ResamplerFixedOut<F>,
+    output: ResamplerFixedIn<F>,
+    input_block: BlockHeap<F>,
+    output_block: BlockHeap<F>,
 }
 
-impl<S: Sample> Resamplers<S> {
+impl<F: Float> Resamplers<F> {
     pub fn new(
-        num_channels: u16,
+        num_channels: usize,
         system_sample_rate: usize,
         user_sample_rate: usize,
         user_num_frames: usize,
@@ -37,8 +38,8 @@ impl<S: Sample> Resamplers<S> {
 
         let mut input_block = input.generate_input_block();
         let mut output_block = output.generate_output_block();
-        input_block.set_num_frames(input.input_frames_next());
-        output_block.set_num_frames(output.output_frames_next());
+        input_block.set_num_frames_visible(input.input_frames_next());
+        output_block.set_num_frames_visible(output.output_frames_next());
 
         Self {
             input_block,
@@ -48,15 +49,17 @@ impl<S: Sample> Resamplers<S> {
         }
     }
 
-    pub fn process_input(&mut self, output: &mut impl BlockWrite<S>) {
-        self.input.process(&self.input_block, output).unwrap();
-        self.input_block.set_num_frames(self.input_frames_next());
+    pub fn process_input(&mut self, output: BlockViewMut<F>) {
+        self.input.process(self.input_block.view(), output).unwrap();
+        self.input_block
+            .set_num_frames_visible(self.input_frames_next());
     }
 
-    pub fn process_output(&mut self, input: &impl BlockRead<S>) {
-        self.output_block.set_num_frames(self.output_frames_next());
+    pub fn process_output(&mut self, input: BlockView<F>) {
+        self.output_block
+            .set_num_frames_visible(self.output_frames_next());
         self.output
-            .process(input, &mut self.output_block.view_mut())
+            .process(input, self.output_block.view_mut())
             .unwrap();
     }
 
@@ -75,11 +78,11 @@ impl<S: Sample> Resamplers<S> {
         self.output_block.clear();
     }
 
-    pub fn input_block(&mut self) -> BlockViewMut<S> {
+    pub fn input_block(&mut self) -> BlockViewMut<F> {
         self.input_block.view_mut()
     }
 
-    pub fn output_block(&self) -> BlockView<S> {
+    pub fn output_block(&self) -> BlockView<F> {
         self.output_block.view()
     }
 

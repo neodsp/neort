@@ -16,6 +16,7 @@ neort-blocks = { workspace = true }
 rtsan = { workspace = true }
 realfft = { workspace = true }
 num = { workspace = true }
+ringbuf = { workspace = true }
 
 [dev-dependencies]
 rubato = "0.16.1"

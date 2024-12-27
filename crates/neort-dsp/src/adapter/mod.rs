@@ -1,29 +1,29 @@
+use neort_blocks::{BlockHeap, BlockViewMut};
 use resamplers::Resamplers;
 use tools::{find_max_index, impulse_response};
 
 use crate::{
-    audio_block::{Block, BlockWrite},
-    ringbuffer::{Ringbuffer, RingbufferLocal},
-    Sample,
+    ringbuffer::{local::RingbufferLocal, Ringbuffer},
+    Float,
 };
 
 mod resamplers;
 mod tools;
 
 #[derive(Default)]
-pub struct Adapter<S: Sample> {
-    input_rb: RingbufferLocal<S>,
-    output_rb: RingbufferLocal<S>,
-    resamplers: Option<Resamplers<S>>,
-    process_block: Block<S>,
+pub struct Adapter<F: Float> {
+    input_rb: RingbufferLocal<F>,
+    output_rb: RingbufferLocal<F>,
+    resamplers: Option<Resamplers<F>>,
+    process_block: BlockHeap<F>,
     user_num_frames: usize,
 }
 
-impl<S: Sample> Adapter<S> {
+impl<F: Float> Adapter<F> {
     /// Returns the delay the adaptor is expected to have
     pub fn prepare(
         &mut self,
-        num_channels: u16,
+        num_channels: usize,
         system_sample_rate: usize,
         system_max_num_frames: usize,
         user_sample_rate: usize,
@@ -40,7 +40,7 @@ impl<S: Sample> Adapter<S> {
             ));
         }
 
-        self.process_block = Block::new(num_channels, user_num_frames);
+        self.process_block = BlockHeap::new(num_channels, user_num_frames);
 
         let max_frames = self
             .resamplers
@@ -57,8 +57,8 @@ impl<S: Sample> Adapter<S> {
             10,
             system_max_num_frames,
             num_channels,
-            |block: &mut Block<S>| {
-                self.process(&mut block.view_mut(), |_| {});
+            |block: BlockViewMut<F>| {
+                self.process(block, |_| {});
             },
         );
         self.reset();
@@ -69,30 +69,30 @@ impl<S: Sample> Adapter<S> {
 
     pub fn process(
         &mut self,
-        block: &mut impl BlockWrite<S>,
-        mut process_fn: impl FnMut(&mut Block<S>),
+        mut block: BlockViewMut<F>,
+        mut process_fn: impl FnMut(BlockViewMut<F>),
     ) {
-        assert!(self.input_rb.push_block(block));
+        assert!(self.input_rb.push_block(block.view()));
 
         if let Some(resamplers) = self.resamplers.as_mut() {
             // Resampling necessary
             while self.input_rb.num_frames_stored() >= resamplers.input_frames_next() {
-                assert!(self.input_rb.pop_block(&mut resamplers.input_block()));
-                resamplers.process_input(&mut self.process_block.view_mut());
+                assert!(self.input_rb.pop_block(resamplers.input_block()));
+                resamplers.process_input(self.process_block.view_mut());
 
-                process_fn(&mut self.process_block);
+                process_fn(self.process_block.view_mut());
 
-                resamplers.process_output(&self.process_block);
-                assert!(self.output_rb.push_block(&resamplers.output_block()));
+                resamplers.process_output(self.process_block.view());
+                assert!(self.output_rb.push_block(resamplers.output_block()));
             }
         } else {
             // Resampling unnecessary
             while self.input_rb.num_frames_stored() >= self.user_num_frames {
-                self.input_rb.pop_block(&mut self.process_block.view_mut());
+                self.input_rb.pop_block(self.process_block.view_mut());
 
-                process_fn(&mut self.process_block);
+                process_fn(self.process_block.view_mut());
 
-                assert!(self.output_rb.push_block(&self.process_block));
+                assert!(self.output_rb.push_block(self.process_block.view()));
             }
         }
 
@@ -115,7 +115,7 @@ impl<S: Sample> Adapter<S> {
 #[cfg(test)]
 mod tests {
 
-    use crate::audio_block::BlockRead;
+    use neort_blocks::BlockHeap;
 
     use super::*;
 
@@ -127,9 +127,9 @@ mod tests {
 
         dbg!(delay);
 
-        let mut block = Block::<f32>::new(2, 512);
+        let mut block = BlockHeap::<f32>::new(2, 512);
 
-        adapter.process(&mut block.view_mut(), |block| {
+        adapter.process(block.view_mut(), |block| {
             assert_eq!(block.num_frames(), 512);
         });
     }

@@ -1,5 +1,8 @@
-[package]
-name = "neort"
+[workspace]
+resolver = "2"
+members = ["crates/neoblocks"]
+
+[workspace.package]
 version = "0.0.0"
 edition = "2021"
 authors = ["Stephan Eckes <stephan@neodsp.com>"]
@@ -9,6 +12,18 @@ readme = "README.md"
 license = "MIT OR Apache-2.0"
 keywords = ["neodsp", "audio", "dsp", "real-time"]
 categories = ["multimedia::audio"]
+
+[package]
+name = "neort"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+description.workspace = true
+repository.workspace = true
+readme.workspace = true
+license.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 atomic_float = "1.1"

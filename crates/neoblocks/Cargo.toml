@@ -1,0 +1,19 @@
+[package]
+name = "neoblocks"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+rtsan = { git = "https://github.com/realtime-sanitizer/rtsan-standalone-rs", branch = "dev" }
+
+[features]
+default = ["alloc"]
+alloc = []
+rtsan = ["rtsan/enable"]
+
+[dev-dependencies]
+criterion = "*"
+
+[[bench]]
+name = "blocks"
+harness = false

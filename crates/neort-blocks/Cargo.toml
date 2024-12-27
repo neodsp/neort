@@ -1,10 +1,10 @@
 [package]
-name = "neoblocks"
+name = "neort-blocks"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-rtsan = { git = "https://github.com/realtime-sanitizer/rtsan-standalone-rs", branch = "dev" }
+rtsan = { workspace = true }
 
 [features]
 default = ["alloc"]
@@ -12,7 +12,7 @@ alloc = []
 rtsan = ["rtsan/enable"]
 
 [dev-dependencies]
-criterion = "*"
+criterion = { workspace = true }
 
 [[bench]]
 name = "blocks"

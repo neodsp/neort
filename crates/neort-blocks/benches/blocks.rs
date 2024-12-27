@@ -1,5 +1,5 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
-use neoblocks::BlockHeap;
+use neort_blocks::BlockHeap;
 
 pub fn blocks(c: &mut Criterion) {
     let mut block = BlockHeap::<f32>::new(2, 512);

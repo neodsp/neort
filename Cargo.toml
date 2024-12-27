@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/neoblocks"]
+members = ["crates/neort-blocks"]
 
 [workspace.package]
 version = "0.0.0"
@@ -12,6 +12,12 @@ readme = "README.md"
 license = "MIT OR Apache-2.0"
 keywords = ["neodsp", "audio", "dsp", "real-time"]
 categories = ["multimedia::audio"]
+
+[workspace.dependencies]
+neort-blocks = { path = "crates/neort-blocks" }
+
+rtsan = { git = "https://github.com/realtime-sanitizer/rtsan-standalone-rs", branch = "dev" }
+criterion = "0.5.1"
 
 [package]
 name = "neort"
@@ -34,7 +40,7 @@ num = "0.4"
 realfft = "3.4"
 ringbuf = "0.4"
 rtaudio = { git = "https://github.com/neodsp/rtaudio-rs", optional = true }
-rtsan = { git = "https://github.com/realtime-sanitizer/rtsan-standalone-rs", branch = "dev" }
+rtsan = { workspace = true }
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "2.0"
 

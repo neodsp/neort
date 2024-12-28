@@ -1,21 +1,22 @@
 [package]
-name = "neort-blocks"
-version.workspace = true
-edition.workspace = true
 authors.workspace = true
-description.workspace = true
-repository.workspace = true
-readme.workspace = true
-license.workspace = true
-keywords.workspace = true
 categories.workspace = true
+description.workspace = true
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+name = "neort-blocks"
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
 
 [dependencies]
-rtsan = { workspace = true }
 num = { workspace = true }
+rtsan = { workspace = true }
 
 [features]
 default = ["alloc"]
+
 alloc = []
 rtsan = ["rtsan/enable"]
 

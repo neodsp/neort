@@ -1,59 +1,59 @@
 [workspace]
-resolver = "2"
 members = ["crates/neort-blocks", "crates/neort-dsp", "crates/neort-io"]
+resolver = "2"
 
 [workspace.package]
-version = "0.0.0"
-edition = "2021"
 authors = ["Stephan Eckes <stephan@neodsp.com>"]
-description = "neort is a framework for real-time audio applications"
-repository = "https://github.com/neodsp/neort"
-readme = "README.md"
-license = "MIT OR Apache-2.0"
-keywords = ["neodsp", "audio", "dsp", "real-time"]
 categories = ["multimedia::audio"]
+description = "neort is a framework for real-time audio applications"
+edition = "2021"
+keywords = ["neodsp", "audio", "dsp", "real-time"]
+license = "MIT OR Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/neodsp/neort"
+version = "0.0.0"
 
 [workspace.dependencies]
 neort-blocks = { path = "crates/neort-blocks" }
+neort-dsp = { path = "crates/neort-dsp" }
 
-rtsan = { git = "https://github.com/realtime-sanitizer/rtsan-standalone-rs", branch = "dev" }
 criterion = "0.5.1"
+num = "0.4"
 realfft = "3.4"
 ringbuf = "0.4"
-num = "0.4"
-
+rtsan = { git = "https://github.com/realtime-sanitizer/rtsan-standalone-rs", branch = "dev" }
 
 [package]
-name = "neort"
-version.workspace = true
-edition.workspace = true
 authors.workspace = true
-description.workspace = true
-repository.workspace = true
-readme.workspace = true
-license.workspace = true
-keywords.workspace = true
 categories.workspace = true
+description.workspace = true
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+name = "neort"
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
 
 [dependencies]
-atomic_float = "1.1"
-cubeb = { version = "0.20", optional = true }
-cxx-juce = { git = "https://github.com/neodsp/cxx-juce", optional = true }
-ndarray = "0.16"
-num = "0.4"
-realfft = "3.4"
-ringbuf = "0.4"
-rtaudio = { git = "https://github.com/neodsp/rtaudio-rs", optional = true }
-rtsan = { workspace = true }
-serde = { version = "1.0", features = ["derive"] }
-thiserror = "2.0"
+neort-blocks = { workspace = true }
+neort-dsp = { workspace = true }
+# atomic_float = "1.1"
+# cubeb = { version = "0.20", optional = true }
+# cxx-juce = { git = "https://github.com/neodsp/cxx-juce", optional = true }
+# ndarray = "0.16"
+# num = "0.4"
+# realfft = "3.4"
+# ringbuf = "0.4"
+# rtaudio = { git = "https://github.com/neodsp/rtaudio-rs", optional = true }
+# rtsan = { workspace = true }
+# serde = { version = "1.0", features = ["derive"] }
+# thiserror = "2.0"
 
-[dev-dependencies]
-rubato = "0.16.1"
 
-[features]
-default = ["system-audio-juce"]
-rtsan = ["rtsan/enable"]
-system-audio-cubeb = ["cubeb"]
-system-audio-juce = ["cxx-juce"]
-system-audio-rtaudio = ["rtaudio"]
+# [features]
+# default = ["system-audio-juce"]
+# rtsan = ["rtsan/enable"]
+# system-audio-cubeb = ["cubeb"]
+# system-audio-juce = ["cxx-juce"]
+# system-audio-rtaudio = ["rtaudio"]

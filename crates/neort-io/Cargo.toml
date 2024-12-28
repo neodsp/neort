@@ -1,13 +1,13 @@
 [package]
-name = "neort-io"
-version.workspace = true
-edition.workspace = true
 authors.workspace = true
-description.workspace = true
-repository.workspace = true
-readme.workspace = true
-license.workspace = true
-keywords.workspace = true
 categories.workspace = true
+description.workspace = true
+edition.workspace = true
+keywords.workspace = true
+license.workspace = true
+name = "neort-io"
+readme.workspace = true
+repository.workspace = true
+version.workspace = true
 
 [dependencies]

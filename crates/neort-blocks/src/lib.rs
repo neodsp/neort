@@ -35,6 +35,9 @@ pub struct Block<D: BlockDataConst> {
     frame_cap: usize,
 }
 
+unsafe impl<D: BlockDataConst> Send for Block<D> {}
+unsafe impl<D: BlockDataConst> Sync for Block<D> {}
+
 impl<T: Num, const CAPACITY: usize> BlockStack<T, CAPACITY> {
     #[nonblocking]
     pub fn new(num_channels: usize, num_frames: usize) -> Self {

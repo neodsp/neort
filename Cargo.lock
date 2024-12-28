@@ -390,6 +390,7 @@ version = "0.0.0"
 dependencies = [
  "neort-blocks",
  "neort-dsp",
+ "neort-io",
 ]
 
 [[package]]

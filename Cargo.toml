@@ -16,6 +16,7 @@ version = "0.0.0"
 [workspace.dependencies]
 neort-blocks = { path = "crates/neort-blocks" }
 neort-dsp = { path = "crates/neort-dsp" }
+neort-io = { path = "crates/neort-io" }
 
 criterion = "0.5.1"
 num = "0.4"
@@ -41,21 +42,4 @@ version.workspace = true
 [dependencies]
 neort-blocks = { workspace = true }
 neort-dsp = { workspace = true }
-# atomic_float = "1.1"
-# cubeb = { version = "0.20", optional = true }
-# cxx-juce = { git = "https://github.com/neodsp/cxx-juce", optional = true }
-# ndarray = "0.16"
-# num = "0.4"
-# realfft = "3.4"
-# ringbuf = "0.4"
-# rtaudio = { git = "https://github.com/neodsp/rtaudio-rs", optional = true }
-# rtsan = { workspace = true }
-# thiserror = "2.0"
-
-
-# [features]
-# default = ["system-audio-juce"]
-# rtsan = ["rtsan/enable"]
-# system-audio-cubeb = ["cubeb"]
-# system-audio-juce = ["cxx-juce"]
-# system-audio-rtaudio = ["rtaudio"]
+neort-io = { workspace = true }

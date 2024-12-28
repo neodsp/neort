@@ -6,6 +6,7 @@ use crate::{
     error::SystemAudioError,
 };
 
+#[cfg(feature = "backend-juce")]
 pub mod juce_backend;
 
 pub trait AudioBackend {

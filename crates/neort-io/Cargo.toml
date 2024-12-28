@@ -15,4 +15,9 @@ neort-blocks = { workspace = true }
 
 serde = { workspace = true }
 thiserror = { workspace = true }
-cxx-juce = { workspace = true }
+cxx-juce = { workspace = true, optional = true }
+
+[features]
+default = ["backend-juce"]
+
+backend-juce = ["cxx-juce"]

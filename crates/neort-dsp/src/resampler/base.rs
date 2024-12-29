@@ -2,7 +2,8 @@
 
 use std::sync::Arc;
 
-use num::{Complex, Zero};
+use num_complex::Complex;
+use num_traits::Zero;
 use realfft::{ComplexToReal, FftNum, RealFftPlanner, RealToComplex};
 use rtsan::nonblocking;
 

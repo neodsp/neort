@@ -1,5 +1,5 @@
 use neort_blocks::{BlockHeap, BlockView, BlockViewMut};
-use num::Float;
+use num_traits::Float;
 use realfft::FftNum;
 
 pub mod base;

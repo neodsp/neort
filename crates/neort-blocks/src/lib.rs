@@ -12,7 +12,7 @@ use core::{
 use alloc::alloc::{alloc_zeroed, Layout};
 
 pub use block_data::*;
-use num::Zero;
+use num_traits::Zero;
 use rtsan::nonblocking;
 
 pub mod block_data;

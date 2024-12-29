@@ -353,9 +353,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.168"
+version = "0.2.169"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5aaeb2981e0606ca11d79718f8bb01164f1d6ed75080182d3abf017e6d244b6d"
+checksum = "b5aba8db14291edd000dfcc4d620c7ebfb122c613afb886ca8803fa4e128a20a"
 
 [[package]]
 name = "link-cplusplus"
@@ -398,7 +398,7 @@ name = "neort-blocks"
 version = "0.0.0"
 dependencies = [
  "criterion",
- "num",
+ "num-traits",
  "rtsan",
 ]
 
@@ -407,7 +407,9 @@ name = "neort-dsp"
 version = "0.0.0"
 dependencies = [
  "neort-blocks",
- "num",
+ "num-complex",
+ "num-integer",
+ "num-traits",
  "realfft",
  "ringbuf",
  "rtsan",
@@ -425,30 +427,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "num"
-version = "0.4.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35bd024e8b2ff75562e5f34e7f4905839deb4b22955ef5e73d2fea1b9813cb23"
-dependencies = [
- "num-bigint",
- "num-complex",
- "num-integer",
- "num-iter",
- "num-rational",
- "num-traits",
-]
-
-[[package]]
-name = "num-bigint"
-version = "0.4.6"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a5e44f723f1133c9deac646763579fdb3ac745e418f2a7af9cd0c431da1f20b9"
-dependencies = [
- "num-integer",
- "num-traits",
-]
-
-[[package]]
 name = "num-complex"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -463,28 +441,6 @@ version = "0.1.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7969661fd2958a5cb096e56c8e1ad0444ac2bbcd0061bd28660485a44879858f"
 dependencies = [
- "num-traits",
-]
-
-[[package]]
-name = "num-iter"
-version = "0.1.45"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1429034a0490724d0075ebb2bc9e875d6503c3cf69e235a8941aa757d83ef5bf"
-dependencies = [
- "autocfg",
- "num-integer",
- "num-traits",
-]
-
-[[package]]
-name = "num-rational"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f83d14da390562dca69fc84082e73e548e1ad308d24accdedd2720017cb37824"
-dependencies = [
- "num-bigint",
- "num-integer",
  "num-traits",
 ]
 
@@ -563,9 +519,9 @@ dependencies = [
 
 [[package]]
 name = "quote"
-version = "1.0.37"
+version = "1.0.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b5b9d34b8991d19d98081b46eacdd8eb58c6f2b201139f7c5f643cc155a633af"
+checksum = "0e4dccaaaf89514f546c693ddc140f729f958c247918a13380cccc6078391acc"
 dependencies = [
  "proc-macro2",
 ]
@@ -641,7 +597,7 @@ dependencies = [
 [[package]]
 name = "rtsan"
 version = "0.1.0"
-source = "git+https://github.com/realtime-sanitizer/rtsan-standalone-rs?branch=dev#d39ce9086b0b9c426cfba871e66702161d9a0e55"
+source = "git+https://github.com/realtime-sanitizer/rtsan-standalone-rs?branch=dev#559e2ab8c0cf45b709086578944c5a79818624ba"
 dependencies = [
  "rtsan-macros",
  "rtsan-sys",
@@ -650,7 +606,7 @@ dependencies = [
 [[package]]
 name = "rtsan-macros"
 version = "0.1.0"
-source = "git+https://github.com/realtime-sanitizer/rtsan-standalone-rs?branch=dev#d39ce9086b0b9c426cfba871e66702161d9a0e55"
+source = "git+https://github.com/realtime-sanitizer/rtsan-standalone-rs?branch=dev#559e2ab8c0cf45b709086578944c5a79818624ba"
 dependencies = [
  "quote",
  "syn",
@@ -659,7 +615,7 @@ dependencies = [
 [[package]]
 name = "rtsan-sys"
 version = "0.1.0"
-source = "git+https://github.com/realtime-sanitizer/rtsan-standalone-rs?branch=dev#d39ce9086b0b9c426cfba871e66702161d9a0e55"
+source = "git+https://github.com/realtime-sanitizer/rtsan-standalone-rs?branch=dev#559e2ab8c0cf45b709086578944c5a79818624ba"
 dependencies = [
  "tempfile",
 ]
@@ -733,18 +689,18 @@ checksum = "a3cf7c11c38cb994f3d40e8a8cde3bbd1f72a435e4c49e85d6553d8312306152"
 
 [[package]]
 name = "serde"
-version = "1.0.216"
+version = "1.0.217"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0b9781016e935a97e8beecf0c933758c97a5520d32930e460142b4cd80c6338e"
+checksum = "02fc4265df13d6fa1d00ecff087228cc0a2b5f3c0e87e258d8b94a156e984c70"
 dependencies = [
  "serde_derive",
 ]
 
 [[package]]
 name = "serde_derive"
-version = "1.0.216"
+version = "1.0.217"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "46f859dbbf73865c6627ed570e78961cd3ac92407a2d117204c49232485da55e"
+checksum = "5a9bf7cf98d04a2b28aead066b7496853d4779c9cc183c440dbac457641e19a0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -792,9 +748,9 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "syn"
-version = "2.0.90"
+version = "2.0.93"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "919d3b74a5dd0ccd15aeb8f93e7006bd9e14c295087c9896a110f490752bcf31"
+checksum = "9c786062daee0d6db1132800e623df74274a0a87322d8e183338e01b3d98d058"
 dependencies = [
  "proc-macro2",
  "quote",

@@ -47,7 +47,7 @@ impl<F: Float> ResamplerFixedOut<F> {
     ) -> Result<Self, ()> {
         validate_sample_rates(sample_rate_input, sample_rate_output)?;
 
-        let gcd = num::integer::gcd(sample_rate_input, sample_rate_output);
+        let gcd = num_integer::gcd(sample_rate_input, sample_rate_output);
         let min_chunk_out = sample_rate_output / gcd;
         let wanted_subsize = num_frames_out / sub_chunks;
         let fft_chunks = (wanted_subsize as f32 / min_chunk_out as f32).ceil() as usize;

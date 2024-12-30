@@ -1,3 +1,4 @@
+use std::default;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -8,6 +9,7 @@ use neort_blocks::{BlockHeap, BlockViewMut};
 use crate::ringbuffer::shared::{create_shared_ringbuffer, RbConsumer, RbProducer};
 use crate::Float;
 
+#[derive(Default)]
 pub struct AsyncAdapter<F: Float> {
     input_prod: RbProducer<F>,
     output_cons: RbConsumer<F>,
@@ -17,14 +19,15 @@ pub struct AsyncAdapter<F: Float> {
 
 impl<F: Float> AsyncAdapter<F> {
     #[allow(clippy::new_without_default)]
-    pub fn new(
+    pub fn prepare(
+        &mut self,
         num_channels: usize,
         system_sample_rate: usize,
         system_max_num_frames: usize,
         user_sample_rate: usize,
         user_num_frames: usize,
         mut process_fn: impl FnMut(BlockViewMut<F>) + Send + 'static,
-    ) -> Self {
+    ) {
         let mut resamplers = None;
 
         if system_sample_rate != user_sample_rate {
@@ -46,11 +49,19 @@ impl<F: Float> AsyncAdapter<F> {
             create_shared_ringbuffer(num_channels, max_frames * 3, 0);
         let (mut output_prod, output_cons) =
             create_shared_ringbuffer(num_channels, max_frames * 3, 0);
+        self.input_prod = input_prod;
+        self.output_cons = output_cons;
 
-        let terminate_flag = Arc::new(AtomicBool::new(false));
-        let terminate_flag_clone = Arc::clone(&terminate_flag);
+        // stop old thread
+        if let Some(handle) = self.handle.take() {
+            self.terminate_flag.store(true, Ordering::Relaxed);
+            handle.join().unwrap();
+        }
 
-        let handle = std::thread::spawn(move || {
+        self.terminate_flag = Arc::new(AtomicBool::new(false));
+        let terminate_flag_clone = Arc::clone(&self.terminate_flag);
+
+        self.handle = Some(std::thread::spawn(move || {
             while !terminate_flag_clone.load(Ordering::Relaxed) {
                 if let Some(resamplers) = resamplers.as_mut() {
                     // Resampling necessary
@@ -74,14 +85,7 @@ impl<F: Float> AsyncAdapter<F> {
                     }
                 }
             }
-        });
-
-        Self {
-            input_prod,
-            output_cons,
-            handle: Some(handle),
-            terminate_flag,
-        }
+        }));
     }
 
     pub fn process(&mut self, mut block: BlockViewMut<F>) {
@@ -119,7 +123,9 @@ mod tests {
         let called_flag_clone = Arc::clone(&called_flag);
 
         {
-            let mut adapter = AsyncAdapter::<f32>::new(2, 44100, 1024, 48000, 512, move |block| {
+            let mut adapter = AsyncAdapter::<f32>::default();
+
+            adapter.prepare(2, 44100, 1024, 48000, 512, move |block| {
                 assert_eq!(block.num_frames(), 512);
                 called_flag_clone.store(true, Ordering::Relaxed);
                 dbg!("I've been called!");

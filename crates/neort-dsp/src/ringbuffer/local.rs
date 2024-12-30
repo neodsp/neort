@@ -7,16 +7,9 @@ use ringbuf::{
 
 use crate::Float;
 
+#[derive(Default)]
 pub struct RingbufferLocal<F: Float> {
     ringbuffers: Vec<LocalRb<Heap<F>>>,
-}
-
-impl<F: Float> Default for RingbufferLocal<F> {
-    fn default() -> Self {
-        Self {
-            ringbuffers: Vec::new(),
-        }
-    }
 }
 
 impl<F: Float> RingbufferLocal<F> {

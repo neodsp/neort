@@ -10,6 +10,7 @@ use ringbuf::{
 
 use crate::Float;
 
+#[derive(Default)]
 pub struct RbProducer<F: Float> {
     producers: Vec<Caching<Arc<SharedRb<Heap<F>>>, true, false>>,
 }
@@ -37,6 +38,7 @@ impl<F: Float> RbProducer<F> {
     }
 }
 
+#[derive(Default)]
 pub struct RbConsumer<F: Float> {
     consumers: Vec<Caching<Arc<SharedRb<Heap<F>>>, false, true>>,
 }

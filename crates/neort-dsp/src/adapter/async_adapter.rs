@@ -1,3 +1,7 @@
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
+use std::thread::JoinHandle;
+
 use super::resamplers::Resamplers;
 use neort_blocks::{BlockHeap, BlockViewMut};
 
@@ -7,6 +11,8 @@ use crate::Float;
 pub struct AsyncAdapter<F: Float> {
     input_prod: RbProducer<F>,
     output_cons: RbConsumer<F>,
+    handle: Option<JoinHandle<()>>,
+    terminate_flag: Arc<AtomicBool>,
 }
 
 impl<F: Float> AsyncAdapter<F> {
@@ -41,26 +47,31 @@ impl<F: Float> AsyncAdapter<F> {
         let (mut output_prod, output_cons) =
             create_shared_ringbuffer(num_channels, max_frames * 3, 0);
 
-        std::thread::spawn(move || loop {
-            if let Some(resamplers) = resamplers.as_mut() {
-                // Resampling necessary
-                while input_cons.num_frames_stored() >= resamplers.input_frames_next() {
-                    assert!(input_cons.pop_block(resamplers.input_block()));
-                    resamplers.process_input(process_block.view_mut());
+        let terminate_flag = Arc::new(AtomicBool::new(false));
+        let terminate_flag_clone = Arc::clone(&terminate_flag);
 
-                    process_fn(process_block.view_mut());
+        let handle = std::thread::spawn(move || {
+            while !terminate_flag_clone.load(Ordering::Relaxed) {
+                if let Some(resamplers) = resamplers.as_mut() {
+                    // Resampling necessary
+                    while input_cons.num_frames_stored() >= resamplers.input_frames_next() {
+                        assert!(input_cons.pop_block(resamplers.input_block()));
+                        resamplers.process_input(process_block.view_mut());
 
-                    resamplers.process_output(process_block.view());
-                    assert!(output_prod.push_block(resamplers.output_block()));
-                }
-            } else {
-                // Resampling unnecessary
-                while input_cons.num_frames_stored() >= user_num_frames {
-                    input_cons.pop_block(process_block.view_mut());
+                        process_fn(process_block.view_mut());
 
-                    process_fn(process_block.view_mut());
+                        resamplers.process_output(process_block.view());
+                        assert!(output_prod.push_block(resamplers.output_block()));
+                    }
+                } else {
+                    // Resampling unnecessary
+                    while input_cons.num_frames_stored() >= user_num_frames {
+                        input_cons.pop_block(process_block.view_mut());
 
-                    assert!(output_prod.push_block(process_block.view()));
+                        process_fn(process_block.view_mut());
+
+                        assert!(output_prod.push_block(process_block.view()));
+                    }
                 }
             }
         });
@@ -68,6 +79,8 @@ impl<F: Float> AsyncAdapter<F> {
         Self {
             input_prod,
             output_cons,
+            handle: Some(handle),
+            terminate_flag,
         }
     }
 
@@ -82,5 +95,45 @@ impl<F: Float> AsyncAdapter<F> {
         } else {
             block.clear();
         }
+    }
+}
+
+impl<F: Float> Drop for AsyncAdapter<F> {
+    fn drop(&mut self) {
+        if let Some(handle) = self.handle.take() {
+            self.terminate_flag.store(true, Ordering::Relaxed);
+            handle.join().unwrap();
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // const CALLED_FLAG: AtomicBool = AtomicBool::new(false);
+
+    #[test]
+    fn test_name() {
+        let called_flag = Arc::new(AtomicBool::new(false));
+        let called_flag_clone = Arc::clone(&called_flag);
+
+        {
+            let mut adapter = AsyncAdapter::<f32>::new(2, 44100, 1024, 48000, 512, move |block| {
+                assert_eq!(block.num_frames(), 512);
+                called_flag_clone.store(true, Ordering::Relaxed);
+                dbg!("I've been called!");
+            });
+
+            let mut block = BlockHeap::new(2, 256);
+
+            adapter.process(block.view_mut());
+            adapter.process(block.view_mut());
+            adapter.process(block.view_mut());
+            adapter.process(block.view_mut());
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
+
+        assert!(called_flag.load(Ordering::Relaxed));
     }
 }

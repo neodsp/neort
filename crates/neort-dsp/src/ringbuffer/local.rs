@@ -7,8 +7,6 @@ use ringbuf::{
 
 use crate::Float;
 
-use super::Ringbuffer;
-
 pub struct RingbufferLocal<F: Float> {
     ringbuffers: Vec<LocalRb<Heap<F>>>,
 }
@@ -21,8 +19,8 @@ impl<F: Float> Default for RingbufferLocal<F> {
     }
 }
 
-impl<F: Float> Ringbuffer<F> for RingbufferLocal<F> {
-    fn prepare(&mut self, num_channels: usize, frame_capacity: usize, latency: usize) {
+impl<F: Float> RingbufferLocal<F> {
+    pub fn prepare(&mut self, num_channels: usize, frame_capacity: usize, latency: usize) {
         assert!(latency < frame_capacity);
         self.ringbuffers = Vec::with_capacity(num_channels);
         for _ in 0..num_channels {
@@ -39,7 +37,7 @@ impl<F: Float> Ringbuffer<F> for RingbufferLocal<F> {
     }
 
     #[rtsan::nonblocking]
-    fn push_block(&mut self, block: BlockView<F>) -> bool {
+    pub fn push_block(&mut self, block: BlockView<F>) -> bool {
         let mut pushed_all = true;
         let num_frames = block.num_frames();
         for (rb, channel) in self.ringbuffers.iter_mut().zip(block.channels()) {
@@ -52,7 +50,7 @@ impl<F: Float> Ringbuffer<F> for RingbufferLocal<F> {
     }
 
     #[rtsan::nonblocking]
-    fn pop_block(&mut self, mut block: BlockViewMut<F>) -> bool {
+    pub fn pop_block(&mut self, mut block: BlockViewMut<F>) -> bool {
         let mut popped_all = true;
         let num_frames = block.num_frames();
         for (rb, channel) in self.ringbuffers.iter_mut().zip(block.channels_mut()) {
@@ -67,17 +65,17 @@ impl<F: Float> Ringbuffer<F> for RingbufferLocal<F> {
         popped_all
     }
 
-    fn reset(&mut self) {
+    pub fn reset(&mut self) {
         for rb in self.ringbuffers.iter_mut() {
             rb.clear();
         }
     }
 
-    fn num_frames_stored(&self) -> usize {
+    pub fn num_frames_stored(&self) -> usize {
         self.ringbuffers[0].occupied_len()
     }
 
-    fn num_frames_free(&self) -> usize {
+    pub fn num_frames_free(&self) -> usize {
         self.ringbuffers[0].vacant_len()
     }
 }

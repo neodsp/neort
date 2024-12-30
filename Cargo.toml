@@ -1,5 +1,11 @@
 [workspace]
-members = ["crates/neort-blocks", "crates/neort-dsp", "crates/neort-io"]
+members = [
+    "crates/neort-blocks",
+    "crates/neort-dsp",
+    "crates/neort-io",
+    "examples/plugin",
+    "examples/plugin/xtask",
+]
 resolver = "2"
 
 [workspace.package]
@@ -14,6 +20,7 @@ repository = "https://github.com/neodsp/neort"
 version = "0.0.0"
 
 [workspace.dependencies]
+neort = { path = "." }
 neort-blocks = { path = "crates/neort-blocks" }
 neort-dsp = { path = "crates/neort-dsp" }
 neort-io = { path = "crates/neort-io" }

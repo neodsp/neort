@@ -18,6 +18,6 @@ thiserror = { workspace = true }
 cxx-juce = { workspace = true, optional = true }
 
 [features]
-default = ["backend-juce"]
+# default = ["backend-juce"]
 
 backend-juce = ["cxx-juce"]

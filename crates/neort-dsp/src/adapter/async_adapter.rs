@@ -1,4 +1,3 @@
-use std::default;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::thread::JoinHandle;
@@ -77,7 +76,7 @@ impl<F: Float> AsyncAdapter<F> {
                 } else {
                     // Resampling unnecessary
                     while input_cons.num_frames_stored() >= user_num_frames {
-                        input_cons.pop_block(process_block.view_mut());
+                        assert!(input_cons.pop_block(process_block.view_mut()));
 
                         process_fn(process_block.view_mut());
 
@@ -122,11 +121,12 @@ mod tests {
         let called_flag = Arc::new(AtomicBool::new(false));
         let called_flag_clone = Arc::clone(&called_flag);
 
+        let user_num_frames = 64;
         {
             let mut adapter = AsyncAdapter::<f32>::default();
 
-            adapter.prepare(2, 44100, 1024, 48000, 512, move |block| {
-                assert_eq!(block.num_frames(), 512);
+            adapter.prepare(2, 48000, 1024, 16000, user_num_frames, move |block| {
+                assert_eq!(block.num_frames(), user_num_frames);
                 called_flag_clone.store(true, Ordering::Relaxed);
                 dbg!("I've been called!");
             });

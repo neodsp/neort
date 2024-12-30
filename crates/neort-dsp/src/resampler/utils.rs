@@ -214,7 +214,7 @@ pub fn make_sincs<T: Float>(
     let mut sincs = BlockHeap::new(factor, npoints);
     for p in 0..npoints {
         for n in 0..factor {
-            sincs[(factor - n - 1, p)] = y[factor * p + n] / sum;
+            sincs[[factor - n - 1, p]] = y[factor * p + n] / sum;
         }
     }
     sincs

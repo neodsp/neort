@@ -328,17 +328,17 @@ impl<D: BlockDataMut> Block<D> {
     }
 }
 
-impl<D: BlockDataConst> Index<(usize, usize)> for Block<D> {
+impl<D: BlockDataConst> Index<[usize; 2]> for Block<D> {
     type Output = D::Num;
 
-    fn index(&self, index: (usize, usize)) -> &Self::Output {
-        self.sample(index.0, index.1)
+    fn index(&self, index: [usize; 2]) -> &Self::Output {
+        self.sample(index[0], index[1])
     }
 }
 
-impl<D: BlockDataMut> IndexMut<(usize, usize)> for Block<D> {
-    fn index_mut(&mut self, index: (usize, usize)) -> &mut Self::Output {
-        self.sample_mut(index.0, index.1)
+impl<D: BlockDataMut> IndexMut<[usize; 2]> for Block<D> {
+    fn index_mut(&mut self, index: [usize; 2]) -> &mut Self::Output {
+        self.sample_mut(index[0], index[1])
     }
 }
 
@@ -393,11 +393,11 @@ mod tests {
     #[test]
     fn test_sample() {
         let mut block = BlockHeap::<i32>::new(2, 3);
-        block[(0, 1)] = 24;
-        block[(1, 2)] = 42;
+        block[[0, 1]] = 24;
+        block[[1, 2]] = 42;
         assert_eq!(block.raw_data(), &[0, 24, 0, 0, 0, 42]);
-        assert_eq!(block[(0, 1)], 24);
-        assert_eq!(block[(1, 2)], 42);
+        assert_eq!(block[[0, 1]], 24);
+        assert_eq!(block[[1, 2]], 42);
 
         let mut block = BlockHeap::<i32>::new(2, 3);
         *block.sample_mut(0, 1) = 24;
@@ -476,7 +476,7 @@ mod tests {
         block1.copy_from_block(&block2);
         assert_eq!(block1, block2);
 
-        block1[(1, 1)] = 0;
+        block1[[1, 1]] = 0;
         assert_ne!(block1, block2);
     }
 }

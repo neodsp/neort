@@ -395,8 +395,9 @@ dependencies = [
 
 [[package]]
 name = "cxx-juce"
-version = "0.7.1"
-source = "git+https://github.com/neodsp/cxx-juce#c80870398380a50f53fb75d6602d4a121ce6e8b5"
+version = "0.8.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "638e48d27d2dbc5df0965ef609ee254704aa0e4e94ca2724f1db3446ad0b0a04"
 dependencies = [
  "cmake",
  "cxx",

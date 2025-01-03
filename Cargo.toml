@@ -33,7 +33,7 @@ realfft = "3.4"
 ringbuf = "0.4"
 rtsan = { git = "https://github.com/realtime-sanitizer/rtsan-standalone-rs", branch = "dev" }
 serde = { version = "1.0", features = ["derive"] }
-cxx-juce = { git = "https://github.com/neodsp/cxx-juce" }
+cxx-juce = "0.8.0"
 thiserror = "2.0"
 
 [package]

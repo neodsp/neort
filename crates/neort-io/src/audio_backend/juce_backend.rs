@@ -1,6 +1,9 @@
-use cxx_juce::juce_audio_devices::{
-    AudioCallbackHandle, AudioDeviceManager, AudioIODevice, AudioIODeviceCallback,
-    AudioIODeviceType, ChannelCount,
+use cxx_juce::{
+    juce_audio_devices::{
+        AudioCallbackHandle, AudioDeviceManager, AudioIODevice, AudioIODeviceCallback,
+        AudioIODeviceType, ChannelCount,
+    },
+    JUCE,
 };
 use neort_blocks::{BlockHeap, BlockView, BlockViewMut};
 
@@ -12,17 +15,17 @@ use crate::{
 
 use super::AudioBackend;
 
-pub struct JuceBackend<'a> {
-    device_manager: AudioDeviceManager<'a>,
+pub struct JuceBackend {
+    device_manager: AudioDeviceManager,
     handle: Option<AudioCallbackHandle>,
 }
 
-impl AudioBackend for JuceBackend<'_> {
+impl AudioBackend for JuceBackend {
     fn new() -> Result<Self, SystemAudioError>
     where
         Self: Sized,
     {
-        let mut device_manager = AudioDeviceManager::new();
+        let mut device_manager = AudioDeviceManager::new(&JUCE::initialise());
         device_manager
             .initialise(256, 256)
             .map_err(|_| SystemAudioError::UnknownBackendError)?;
@@ -220,8 +223,8 @@ impl AudioIODeviceCallback for JuceAudioCallback {
 mod tests {
     use super::*;
 
+    // #[ignore = "manual test"]
     #[test]
-    #[ignore = "manual test"]
     fn test_audio_stream() -> Result<(), SystemAudioError> {
         let mut backend = JuceBackend::new()?;
         let mut config = backend.default_config()?;

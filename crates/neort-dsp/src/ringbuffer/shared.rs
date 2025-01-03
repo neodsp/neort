@@ -21,7 +21,7 @@ impl<F: Float> RbProducer<F> {
         let mut pushed_all = true;
         let num_frames = block.num_frames();
         for (rb, channel) in self.producers.iter_mut().zip(block.channels()) {
-            let num_pushed = rb.push_iter(channel.iter().copied());
+            let num_pushed = rb.push_slice(channel);
             if num_pushed != num_frames {
                 pushed_all = false;
             }
@@ -49,13 +49,10 @@ impl<F: Float> RbConsumer<F> {
         let mut popped_all = true;
         let num_frames = block.num_frames();
         for (rb, channel) in self.consumers.iter_mut().zip(block.channels_mut()) {
-            if rb.occupied_len() < num_frames {
+            let num_popped = rb.pop_slice(channel);
+            if num_popped < num_frames {
                 popped_all = false;
             }
-            channel
-                .iter_mut()
-                .zip(rb.pop_iter())
-                .for_each(|(c, r)| *c = r);
         }
         popped_all
     }
@@ -107,7 +104,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn local_rb() {
+    fn shared_rb() {
         let (mut prod, mut cons) = create_shared_ringbuffer(2, 1024, 0);
 
         let mut block = BlockHeap::<f32>::new(2, 512);

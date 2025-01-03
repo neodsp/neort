@@ -34,7 +34,7 @@ impl<F: Float> RingbufferLocal<F> {
         let mut pushed_all = true;
         let num_frames = block.num_frames();
         for (rb, channel) in self.ringbuffers.iter_mut().zip(block.channels()) {
-            let num_pushed = rb.push_iter(channel.iter().copied());
+            let num_pushed = rb.push_slice(channel);
             if num_pushed != num_frames {
                 pushed_all = false;
             }

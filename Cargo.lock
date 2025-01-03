@@ -673,8 +673,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "neort-float"
+name = "neort-floats"
 version = "0.0.0"
+dependencies = [
+ "criterion",
+ "num-traits",
+]
 
 [[package]]
 name = "neort-io"

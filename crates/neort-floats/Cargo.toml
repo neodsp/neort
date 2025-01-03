@@ -5,7 +5,7 @@ description.workspace = true
 edition.workspace = true
 keywords.workspace = true
 license.workspace = true
-name = "neort-float"
+name = "neort-floats"
 readme.workspace = true
 repository.workspace = true
 version.workspace = true
@@ -13,3 +13,11 @@ version.workspace = true
 [features]
 default = ["std"]
 std = []
+
+[dev-dependencies]
+criterion = { workspace = true }
+num-traits = { workspace = true }
+
+[[bench]]
+name = "floats"
+harness = false

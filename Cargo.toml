@@ -3,7 +3,7 @@ members = [
     "crates/neort-blocks",
     "crates/neort-dsp",
     "crates/neort-io",
-    "crates/neort-float",
+    "crates/neort-floats",
     "examples/plugin",
     "examples/plugin/xtask",
 ]

@@ -4,7 +4,7 @@ use core::cmp::PartialOrd;
 use core::fmt::{Debug, Display};
 use core::{f32, f64, ops::*};
 
-pub trait FloatCore:
+pub trait FloatsCore:
     Sized
     + Copy
     + Clone
@@ -85,7 +85,7 @@ pub trait FloatCore:
     fn min(self, other: Self) -> Self;
 }
 
-impl FloatCore for f32 {
+impl FloatsCore for f32 {
     const RADIX: u32 = f32::RADIX;
     const MANTISSA_DIGITS: u32 = f32::MANTISSA_DIGITS;
     const DIGITS: u32 = f32::DIGITS;
@@ -172,7 +172,7 @@ impl FloatCore for f32 {
     }
 }
 
-impl FloatCore for f64 {
+impl FloatsCore for f64 {
     const RADIX: u32 = f64::RADIX;
     const MANTISSA_DIGITS: u32 = f64::MANTISSA_DIGITS;
     const DIGITS: u32 = f64::DIGITS;
@@ -259,7 +259,7 @@ impl FloatCore for f64 {
     }
 }
 
-pub trait Float: FloatCore {
+pub trait Floats: FloatsCore {
     fn abs(self) -> Self;
     fn ceil(self) -> Self;
     fn floor(self) -> Self;
@@ -289,7 +289,7 @@ pub trait Float: FloatCore {
     fn powi(self, n: i32) -> Self;
 }
 
-impl Float for f32 {
+impl Floats for f32 {
     #[inline(always)]
     fn abs(self) -> Self {
         self.abs()
@@ -400,7 +400,7 @@ impl Float for f32 {
     }
 }
 
-impl Float for f64 {
+impl Floats for f64 {
     #[inline(always)]
     fn abs(self) -> Self {
         self.abs()
@@ -511,16 +511,16 @@ impl Float for f64 {
     }
 }
 
-pub trait IntoFloat {
-    fn into_float<F: FloatCore>(self) -> F;
+pub trait IntoFloats {
+    fn into_floats<F: FloatsCore>(self) -> F;
 }
 
-macro_rules! impl_into_float {
+macro_rules! impl_into_floats {
     ($($t:ty),*) => {
         $(
-            impl IntoFloat for $t {
+            impl IntoFloats for $t {
                 #[inline(always)]
-                fn into_float<F: FloatCore>(self) -> F {
+                fn into_floats<F: FloatsCore>(self) -> F {
                     F::from_f64(self as f64)
                 }
             }
@@ -528,18 +528,18 @@ macro_rules! impl_into_float {
     }
 }
 
-impl_into_float!(i8, i16, i32, i64, isize, u8, u16, u32, u64, usize, f32, f64);
+impl_into_floats!(i8, i16, i32, i64, isize, u8, u16, u32, u64, usize, f32, f64);
 
-pub trait FromFloat {
-    fn from_float<F: FloatCore>(f: F) -> Self;
+pub trait FromFloats {
+    fn from_floats<F: FloatsCore>(f: F) -> Self;
 }
 
-macro_rules! impl_from_float {
+macro_rules! impl_from_floats {
     ($($t:ty),*) => {
         $(
-            impl FromFloat for $t {
+            impl FromFloats for $t {
                 #[inline(always)]
-                fn from_float<F: FloatCore>(f: F) -> Self {
+                fn from_floats<F: FloatsCore>(f: F) -> Self {
                     f.to_f64() as Self
                 }
             }
@@ -547,7 +547,7 @@ macro_rules! impl_from_float {
     }
 }
 
-impl_from_float!(i8, i16, i32, i64, isize, u8, u16, u32, u64, usize, f32, f64);
+impl_from_floats!(i8, i16, i32, i64, isize, u8, u16, u32, u64, usize, f32, f64);
 
 #[cfg(test)]
 mod tests {
@@ -555,16 +555,16 @@ mod tests {
 
     #[test]
     fn test_float() {
-        fn my_add<F: Float>(a: F, b: F) -> F {
+        fn my_add<F: Floats>(a: F, b: F) -> F {
             a + b
         }
 
         assert_eq!(my_add(1_f32, 2_f32), 3.0);
 
-        fn my_pow<F: Float>(a: F) -> F {
-            let b = usize::from_float(a);
+        fn my_pow<F: Floats>(a: F) -> F {
+            let b = usize::from_floats(a);
             dbg!(b);
-            a.powf(10.into_float())
+            a.powf(10.into_floats())
         }
 
         assert_eq!(my_pow(2_f32), 1024.0);

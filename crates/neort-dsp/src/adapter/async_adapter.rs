@@ -4,9 +4,9 @@ use std::thread::JoinHandle;
 
 use super::resamplers::Resamplers;
 use neort_blocks::{BlockHeap, BlockViewMut};
+use neort_float::Float;
 
 use crate::ringbuffer::shared::{create_shared_ringbuffer, RbConsumer, RbProducer};
-use crate::Float;
 
 #[derive(Default)]
 pub struct AsyncAdapter<F: Float> {

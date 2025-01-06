@@ -1,6 +1,5 @@
 use neort_blocks::{BlockHeap, BlockView, BlockViewMut};
-use num_traits::Float;
-use realfft::FftNum;
+use neort_float::Float;
 
 pub mod base;
 pub mod fixed_in;
@@ -8,7 +7,7 @@ pub mod fixed_in_out;
 pub mod fixed_out;
 mod utils;
 
-pub trait Resampler<S: Float + FftNum> {
+pub trait Resampler<S: Float> {
     #[allow(clippy::result_unit_err)]
     fn process(
         &mut self,

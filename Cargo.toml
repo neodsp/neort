@@ -2,8 +2,8 @@
 members = [
     "crates/neort-blocks",
     "crates/neort-dsp",
+    "crates/neort-float",
     "crates/neort-io",
-    "crates/neort-floats",
     "examples/plugin",
     "examples/plugin/xtask",
 ]
@@ -24,8 +24,10 @@ version = "0.0.0"
 neort = { path = "." }
 neort-blocks = { path = "crates/neort-blocks" }
 neort-dsp = { path = "crates/neort-dsp" }
+neort-float = { path = "crates/neort-float" }
 neort-io = { path = "crates/neort-io" }
 
+approx = "0.5.1"
 criterion = "0.5.1"
 num-traits = { version = "0.2.19", default-features = false }
 num-complex = { version = "0.4", default-features = false }

@@ -1,14 +1,13 @@
 use std::sync::Arc;
 
 use neort_blocks::{BlockView, BlockViewMut};
+use neort_float::Float;
 use ringbuf::{
     storage::Heap,
     traits::{Consumer, Observer, Producer, Split},
     wrap::caching::Caching,
     SharedRb,
 };
-
-use crate::Float;
 
 #[derive(Default)]
 pub struct RbProducer<F: Float> {

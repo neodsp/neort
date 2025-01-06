@@ -1,8 +1,7 @@
 // The resamplers are copied from rubato by Henrik Enquist and adapted to take Blocks
 
 use neort_blocks::{BlockHeap, BlockView, BlockViewMut};
-
-use crate::Float;
+use realfft::num_traits::Float;
 
 /// Different window functions that can be used to window the sinc function.
 #[derive(Debug, Clone, Copy)]
@@ -24,21 +23,18 @@ pub enum WindowFunction {
 
 /// Helper function. Standard Blackman-Harris window.
 // The window created is periodic.
-pub fn blackman_harris<T>(npoints: usize) -> Vec<T>
-where
-    T: Float,
-{
-    let mut window = vec![T::zero(); npoints];
-    let pi2 = T::from(2.0).unwrap() * T::from(std::f64::consts::PI).unwrap();
-    let pi4 = T::from(4.0).unwrap() * T::from(std::f64::consts::PI).unwrap();
-    let pi6 = T::from(6.0).unwrap() * T::from(std::f64::consts::PI).unwrap();
-    let np_f = T::from(npoints).unwrap();
-    let a = T::from(0.35875).unwrap();
-    let b = T::from(0.48829).unwrap();
-    let c = T::from(0.14128).unwrap();
-    let d = T::from(0.01168).unwrap();
+pub fn blackman_harris<F: Float>(npoints: usize) -> Vec<F> {
+    let mut window = vec![F::zero(); npoints];
+    let pi2 = F::from(2.0).unwrap() * F::from(std::f64::consts::PI).unwrap();
+    let pi4 = F::from(4.0).unwrap() * F::from(std::f64::consts::PI).unwrap();
+    let pi6 = F::from(6.0).unwrap() * F::from(std::f64::consts::PI).unwrap();
+    let np_f = F::from(npoints).unwrap();
+    let a = F::from(0.35875).unwrap();
+    let b = F::from(0.48829).unwrap();
+    let c = F::from(0.14128).unwrap();
+    let d = F::from(0.01168).unwrap();
     for (x, item) in window.iter_mut().enumerate() {
-        let x_float = T::from(x).unwrap();
+        let x_float = F::from(x).unwrap();
         *item = a - b * (pi2 * x_float / np_f).cos() + c * (pi4 * x_float / np_f).cos()
             - d * (pi6 * x_float / np_f).cos();
     }

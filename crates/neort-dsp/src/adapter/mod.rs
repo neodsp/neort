@@ -1,8 +1,9 @@
 use neort_blocks::{BlockHeap, BlockViewMut};
+use neort_float::Float;
 use resamplers::Resamplers;
 use tools::{find_max_index, impulse_response};
 
-use crate::{ringbuffer::local::RingbufferLocal, Float};
+use crate::ringbuffer::local::RingbufferLocal;
 
 pub mod async_adapter;
 mod resamplers;

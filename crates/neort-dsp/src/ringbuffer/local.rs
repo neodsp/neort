@@ -1,11 +1,10 @@
 use neort_blocks::{BlockView, BlockViewMut};
+use neort_float::Float;
 use ringbuf::{
     storage::Heap,
     traits::{Consumer, Observer, Producer},
     LocalRb,
 };
-
-use crate::Float;
 
 #[derive(Default)]
 pub struct RingbufferLocal<F: Float> {

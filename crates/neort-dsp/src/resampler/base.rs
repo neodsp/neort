@@ -2,12 +2,11 @@
 
 use std::sync::Arc;
 
-use num_complex::Complex;
-use num_traits::Zero;
-use realfft::{ComplexToReal, FftNum, RealFftPlanner, RealToComplex};
+use neort_float::Float;
+use realfft::{
+    num_complex::Complex, num_traits::Zero, ComplexToReal, FftNum, RealFftPlanner, RealToComplex,
+};
 use rtsan::nonblocking;
-
-use crate::Float;
 
 use super::utils::{calculate_cutoff, make_sincs, WindowFunction};
 

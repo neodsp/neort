@@ -1,8 +1,7 @@
 use neort_blocks::{BlockHeap, BlockViewMut};
+use neort_float::Float;
 
-use crate::Float;
-
-pub fn find_max_index<S: Float>(data: &[S]) -> usize {
+pub fn find_max_index<F: Float>(data: &[F]) -> usize {
     let index_of_max: Option<usize> = data
         .iter()
         .enumerate()
@@ -12,14 +11,14 @@ pub fn find_max_index<S: Float>(data: &[S]) -> usize {
     index_of_max.unwrap()
 }
 
-pub fn impulse_response<S: Float>(
+pub fn impulse_response<F: Float>(
     num_iterations: usize,
     num_frames: usize,
     num_channels: usize,
-    mut process_fn: impl FnMut(BlockViewMut<S>),
-) -> Vec<S> {
-    let mut impulse = BlockHeap::<S>::new(num_channels, num_frames);
-    impulse.channel_mut(0)[0] = S::one();
+    mut process_fn: impl FnMut(BlockViewMut<F>),
+) -> Vec<F> {
+    let mut impulse = BlockHeap::<F>::new(num_channels, num_frames);
+    impulse.channel_mut(0)[0] = F::one();
 
     let mut impulse_response = Vec::new();
     process_fn(impulse.view_mut());

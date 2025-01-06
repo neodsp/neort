@@ -5,19 +5,23 @@ description.workspace = true
 edition.workspace = true
 keywords.workspace = true
 license.workspace = true
-name = "neort-floats"
+name = "neort-float"
 readme.workspace = true
 repository.workspace = true
 version.workspace = true
 
 [features]
 default = ["std"]
-std = []
+std = ["num-traits/std"]
+libm = ["num-traits/libm"]
+
+[dependencies]
+num-traits = { workspace = true, default-features = false }
 
 [dev-dependencies]
+approx = { workspace = true }
 criterion = { workspace = true }
-num-traits = { workspace = true }
 
 [[bench]]
-name = "floats"
+name = "float"
 harness = false

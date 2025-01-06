@@ -1,9 +1,7 @@
 use neort_blocks::{BlockHeap, BlockView, BlockViewMut};
+use neort_float::Float;
 
-use crate::{
-    resampler::{fixed_in::ResamplerFixedIn, fixed_out::ResamplerFixedOut, Resampler},
-    Float,
-};
+use crate::resampler::{fixed_in::ResamplerFixedIn, fixed_out::ResamplerFixedOut, Resampler};
 
 pub struct Resamplers<F: Float> {
     input: ResamplerFixedOut<F>,

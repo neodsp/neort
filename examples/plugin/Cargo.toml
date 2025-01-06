@@ -22,11 +22,11 @@ nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", features = [
 neort-blocks = { workspace = true }
 neort-dsp = { workspace = true }
 
-[profile.release]
-lto = "thin"
-strip = "symbols"
+# [profile.release]
+# lto = "thin"
+# strip = "symbols"
 
-[profile.profiling]
-inherits = "release"
-debug = true
-strip = "none"
+# [profile.profiling]
+# inherits = "release"
+# debug = true
+# strip = "none"

@@ -1,4 +1,5 @@
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(clippy::excessive_precision)]
 
 use core::cmp::PartialOrd;
 use core::fmt::{Debug, Display};

@@ -2,6 +2,7 @@
 
 use neort_blocks::{BlockHeap, BlockView, BlockViewMut};
 use neort_float::Float;
+use rtsan_standalone::nonblocking;
 
 use super::{
     base::FftResampler,
@@ -73,7 +74,7 @@ impl<F: Float> ResamplerFixedIn<F> {
 }
 
 impl<F: Float> Resampler<F> for ResamplerFixedIn<F> {
-    #[rtsan::nonblocking]
+    #[nonblocking]
     fn process(
         &mut self,
         input: BlockView<F>,

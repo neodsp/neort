@@ -13,7 +13,7 @@ use alloc::alloc::{alloc_zeroed, Layout};
 
 pub use block_data::*;
 use num_traits::Zero;
-use rtsan::nonblocking;
+use rtsan_standalone::nonblocking;
 
 pub mod block_data;
 pub mod planar_copy_tools;

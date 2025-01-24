@@ -6,7 +6,7 @@ use neort_float::Float;
 use realfft::{
     num_complex::Complex, num_traits::Zero, ComplexToReal, FftNum, RealFftPlanner, RealToComplex,
 };
-use rtsan::nonblocking;
+use rtsan_standalone::nonblocking;
 
 use super::utils::{calculate_cutoff, make_sincs, WindowFunction};
 

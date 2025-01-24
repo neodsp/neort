@@ -12,13 +12,13 @@ version.workspace = true
 
 [dependencies]
 num-traits = { workspace = true }
-rtsan = { workspace = true }
+rtsan-standalone = { workspace = true }
 
 [features]
 default = ["alloc"]
 
 alloc = []
-rtsan = ["rtsan/enable"]
+rtsan = ["rtsan-standalone/enable"]
 
 [dev-dependencies]
 criterion = { workspace = true }

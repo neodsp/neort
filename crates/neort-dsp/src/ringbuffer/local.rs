@@ -5,6 +5,7 @@ use ringbuf::{
     traits::{Consumer, Observer, Producer},
     LocalRb,
 };
+use rtsan_standalone::nonblocking;
 
 #[derive(Default)]
 pub struct RingbufferLocal<F: Float> {
@@ -28,7 +29,7 @@ impl<F: Float> RingbufferLocal<F> {
         }
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     pub fn push_block(&mut self, block: BlockView<F>) -> bool {
         let mut pushed_all = true;
         let num_frames = block.num_frames();
@@ -41,7 +42,7 @@ impl<F: Float> RingbufferLocal<F> {
         pushed_all
     }
 
-    #[rtsan::nonblocking]
+    #[nonblocking]
     pub fn pop_block(&mut self, mut block: BlockViewMut<F>) -> bool {
         let mut popped_all = true;
         let num_frames = block.num_frames();

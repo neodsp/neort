@@ -1,4 +1,4 @@
-use rtsan::nonblocking;
+use rtsan_standalone::nonblocking;
 
 use crate::{Block, BlockDataConst, BlockDataMut};
 

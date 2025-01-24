@@ -8,6 +8,7 @@ use ringbuf::{
     wrap::caching::Caching,
     SharedRb,
 };
+use rtsan_standalone::nonblocking;
 
 #[derive(Default)]
 pub struct RbProducer<F: Float> {
@@ -15,7 +16,7 @@ pub struct RbProducer<F: Float> {
 }
 
 impl<F: Float> RbProducer<F> {
-    #[rtsan::nonblocking]
+    #[nonblocking]
     pub fn push_block(&mut self, block: BlockView<F>) -> bool {
         let mut pushed_all = true;
         let num_frames = block.num_frames();
@@ -43,7 +44,7 @@ pub struct RbConsumer<F: Float> {
 }
 
 impl<F: Float> RbConsumer<F> {
-    #[rtsan::nonblocking]
+    #[nonblocking]
     pub fn pop_block(&mut self, mut block: BlockViewMut<F>) -> bool {
         let mut popped_all = true;
         let num_frames = block.num_frames();

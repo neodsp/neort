@@ -532,6 +532,12 @@ dependencies = [
 
 [[package]]
 name = "hermit-abi"
+version = "0.3.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d231dfb89cfffdbc30e7fc41579ed6066ad03abda9e567ccafae602b97ec5024"
+
+[[package]]
+name = "hermit-abi"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fbf6a919d6cf397374f7dfeeea91d974c7c0a7221d0d0f4f20d859d329e53fcc"
@@ -670,7 +676,7 @@ version = "0.0.0"
 dependencies = [
  "criterion",
  "num-traits",
- "rtsan",
+ "rtsan-standalone",
 ]
 
 [[package]]
@@ -682,7 +688,7 @@ dependencies = [
  "num-integer",
  "realfft",
  "ringbuf",
- "rtsan",
+ "rtsan-standalone",
  "rubato",
 ]
 
@@ -805,6 +811,16 @@ checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
  "autocfg",
  "libm",
+]
+
+[[package]]
+name = "num_cpus"
+version = "1.16.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4161fcb6d602d4d2081af7c3a45852d875a03dd337a6bfdd6e06407b61342a43"
+dependencies = [
+ "hermit-abi 0.3.9",
+ "libc",
 ]
 
 [[package]]
@@ -1044,28 +1060,32 @@ dependencies = [
 ]
 
 [[package]]
-name = "rtsan"
+name = "rtsan-standalone"
 version = "0.1.0"
-source = "git+https://github.com/realtime-sanitizer/rtsan-standalone-rs?branch=dev#559e2ab8c0cf45b709086578944c5a79818624ba"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "55863b925f981c9648c725fe5eae425f6efbd9ac8dfda4fdd756434787c3b8de"
 dependencies = [
- "rtsan-macros",
- "rtsan-sys",
+ "rtsan-standalone-macros",
+ "rtsan-standalone-sys",
 ]
 
 [[package]]
-name = "rtsan-macros"
+name = "rtsan-standalone-macros"
 version = "0.1.0"
-source = "git+https://github.com/realtime-sanitizer/rtsan-standalone-rs?branch=dev#559e2ab8c0cf45b709086578944c5a79818624ba"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "303b36d651ccb130b30b924734704066fcb13389e54c19bd458e0b0459076c98"
 dependencies = [
  "quote",
  "syn 2.0.93",
 ]
 
 [[package]]
-name = "rtsan-sys"
+name = "rtsan-standalone-sys"
 version = "0.1.0"
-source = "git+https://github.com/realtime-sanitizer/rtsan-standalone-rs?branch=dev#559e2ab8c0cf45b709086578944c5a79818624ba"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b7546df1e63946b4db8bdc999c24bbd14d2ae4e80487b52fab6a1eaeed1039c8"
 dependencies = [
+ "num_cpus",
  "tempfile",
 ]
 

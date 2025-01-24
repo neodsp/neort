@@ -29,14 +29,14 @@ neort-io = { path = "crates/neort-io" }
 
 approx = "0.5.1"
 criterion = "0.5.1"
-num-traits = { version = "0.2.19", default-features = false }
+cxx-juce = "0.8.0"
 num-complex = { version = "0.4", default-features = false }
 num-integer = { version = "0.1", default-features = false }
+num-traits = { version = "0.2.19", default-features = false }
 realfft = "3.4"
 ringbuf = "0.4"
-rtsan = { git = "https://github.com/realtime-sanitizer/rtsan-standalone-rs", branch = "dev" }
+rtsan-standalone = "0.1.0"
 serde = { version = "1.0", features = ["derive"] }
-cxx-juce = "0.8.0"
 thiserror = "2.0"
 
 [package]

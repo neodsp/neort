@@ -1,8 +1,10 @@
 use neort_blocks::{BlockView, BlockViewMut};
 use neort_float::{Float, IntoGeneric};
+use rtsan_standalone::nonblocking;
 
 use crate::utils::db_to_gain;
 
+#[nonblocking]
 pub fn mix_down_to_mono<F: Float>(input: BlockView<F>, mut mono_output: BlockViewMut<F>) {
     assert_eq!(mono_output.num_channels(), 1);
     assert_eq!(input.num_frames(), mono_output.num_frames());
@@ -19,6 +21,7 @@ pub fn mix_down_to_mono<F: Float>(input: BlockView<F>, mut mono_output: BlockVie
     }
 }
 
+#[nonblocking]
 pub fn duplicate_mono_to_channels<F: Float>(mono_input: BlockView<F>, mut output: BlockViewMut<F>) {
     assert_eq!(mono_input.num_channels(), 1);
     assert_eq!(mono_input.num_frames(), output.num_frames());
@@ -28,6 +31,7 @@ pub fn duplicate_mono_to_channels<F: Float>(mono_input: BlockView<F>, mut output
     }
 }
 
+#[nonblocking]
 pub fn apply_gain_db<F: Float>(mut block: BlockViewMut<F>, gain_db: f32) {
     let gain = db_to_gain(gain_db).as_f();
     for sample in block.raw_data_mut() {

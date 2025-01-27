@@ -117,7 +117,7 @@ mod tests {
     // const CALLED_FLAG: AtomicBool = AtomicBool::new(false);
 
     #[test]
-    fn test_name() {
+    fn test_async_adapter() {
         let called_flag = Arc::new(AtomicBool::new(false));
         let called_flag_clone = Arc::clone(&called_flag);
 
@@ -132,7 +132,6 @@ mod tests {
             });
 
             let mut block = BlockHeap::new(2, 256);
-
             adapter.process(block.view_mut());
             adapter.process(block.view_mut());
             adapter.process(block.view_mut());

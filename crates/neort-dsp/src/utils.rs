@@ -1,27 +1,34 @@
 use neort_float::{Float, IntoGeneric};
+use rtsan_standalone::{nonblocking, scoped_disabler};
 
+#[nonblocking]
 #[inline(always)]
 pub fn db_to_gain<F: Float>(value: F) -> F {
     10.as_f::<F>().powf(value / 20.as_f())
 }
 
+#[nonblocking]
 #[inline(always)]
 pub fn gain_to_db<F: Float>(value: F) -> F {
     20.as_f::<F>() * value.log10()
 }
 
 /// maps a value from one range into another range
+#[nonblocking]
 #[inline(always)]
 pub fn map<F: Float>(source: F, source_min: F, source_max: F, target_min: F, target_max: F) -> F {
-    assert_ne!(source_min, source_max);
+    scoped_disabler! { assert_ne!(source_min, source_max) };
     target_min + ((target_max - target_min) * (source - source_min)) / (source_max - source_min)
 }
 
 /// maps a linear value between 0.0 and 1.0 into a logarithmic value range
+#[nonblocking]
 #[inline(always)]
 pub fn map_to_log10<F: Float>(value_0_to_1: F, log_range_min: F, log_range_max: F) -> F {
-    assert!(log_range_min.is_positive());
-    assert!(log_range_max.is_positive());
+    scoped_disabler! {
+        assert!(log_range_min.is_positive());
+        assert!(log_range_max.is_positive());
+    }
     let log_min = log_range_min.log10();
     let log_max = log_range_max.log10();
     10.as_f::<F>()
@@ -29,10 +36,13 @@ pub fn map_to_log10<F: Float>(value_0_to_1: F, log_range_min: F, log_range_max: 
 }
 
 /// maps a logarithmic value range into a linear value between 0.0 and 1.0
+#[nonblocking]
 #[inline(always)]
 pub fn map_from_log10<F: Float>(value_in_log_range: F, log_range_min: F, log_range_max: F) -> F {
-    assert!(log_range_min.is_positive());
-    assert!(log_range_max.is_positive());
+    scoped_disabler! {
+        assert!(log_range_min.is_positive());
+        assert!(log_range_max.is_positive());
+    }
     let min = log_range_min.log10();
     let max = log_range_max.log10();
     let value = value_in_log_range.log10();

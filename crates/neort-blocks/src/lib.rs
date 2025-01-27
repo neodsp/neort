@@ -16,6 +16,7 @@ use num_traits::Zero;
 use rtsan_standalone::nonblocking;
 
 pub mod block_data;
+pub mod interleaved_copy_tools;
 pub mod planar_copy_tools;
 
 pub trait Num: Copy + Zero + PartialEq {}
@@ -331,12 +332,14 @@ impl<D: BlockDataMut> Block<D> {
 impl<D: BlockDataConst> Index<[usize; 2]> for Block<D> {
     type Output = D::Num;
 
+    #[nonblocking]
     fn index(&self, index: [usize; 2]) -> &Self::Output {
         self.sample(index[0], index[1])
     }
 }
 
 impl<D: BlockDataMut> IndexMut<[usize; 2]> for Block<D> {
+    #[nonblocking]
     fn index_mut(&mut self, index: [usize; 2]) -> &mut Self::Output {
         self.sample_mut(index[0], index[1])
     }
@@ -345,18 +348,21 @@ impl<D: BlockDataMut> IndexMut<[usize; 2]> for Block<D> {
 impl<D: BlockDataConst> Index<usize> for Block<D> {
     type Output = [D::Num];
 
+    #[nonblocking]
     fn index(&self, index: usize) -> &Self::Output {
         self.channel(index)
     }
 }
 
 impl<D: BlockDataMut> IndexMut<usize> for Block<D> {
+    #[nonblocking]
     fn index_mut(&mut self, index: usize) -> &mut Self::Output {
         self.channel_mut(index)
     }
 }
 
 impl<D1: BlockDataConst, D2: BlockDataConst<Num = D1::Num>> PartialEq<Block<D2>> for Block<D1> {
+    #[nonblocking]
     fn eq(&self, other: &Block<D2>) -> bool {
         if self.num_channels != other.num_channels || self.num_frames != other.num_frames {
             return false;

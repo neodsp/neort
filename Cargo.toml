@@ -35,7 +35,7 @@ num-integer = { version = "0.1", default-features = false }
 num-traits = { version = "0.2.19", default-features = false }
 realfft = "3.4"
 ringbuf = "0.4"
-rtsan-standalone = "0.1.0"
+rtsan-standalone = "0.1"
 serde = { version = "1.0", features = ["derive"] }
 thiserror = "2.0"
 

@@ -1,5 +1,5 @@
 use neort_blocks::BlockHeap;
-use neort_dsp::adapter::{async_adapter::AsyncAdapter, Adapter};
+use neort_dsp::adapter::Adapter;
 use nih_plug::prelude::*;
 use std::sync::Arc;
 
@@ -134,13 +134,19 @@ impl Plugin for NeortExamplePlugin {
         //         }
         //     },
         // );
-        //
-        self.adapter.prepare(
+
+        let latency = self.adapter.prepare(
             audio_io_layout.main_input_channels.unwrap().get() as usize,
             buffer_config.sample_rate as usize,
             buffer_config.max_buffer_size as usize,
             48000,
             128,
+        );
+        nih_log!(
+            "SR: {}, BS: {}, RL: {}",
+            buffer_config.sample_rate,
+            buffer_config.max_buffer_size,
+            latency
         );
 
         true
@@ -162,12 +168,10 @@ impl Plugin for NeortExamplePlugin {
         self.block
             .copy_from_planar_data_limited(buffer.as_slice(), num_channels, num_frames);
 
-        // let params = self.params.clone();
-
         self.adapter.process(self.block.view_mut(), |mut block| {
             for channel in 0..block.num_channels() {
                 for frame in 0..block.num_frames() {
-                    block[[channel, frame]] *= 0.5;
+                    block[[channel, frame]] *= self.params.gain.value();
                 }
             }
         });

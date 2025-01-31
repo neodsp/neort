@@ -1,6 +1,5 @@
 use neort_blocks::{BlockHeap, BlockViewMut};
 use neort_float::Float;
-use num_integer::lcm;
 
 pub fn find_max_index<F: Float>(data: &[F]) -> usize {
     let index_of_max: Option<usize> = data
@@ -37,14 +36,4 @@ pub fn impulse_response<F: Float>(
     }
 
     impulse_response
-}
-
-// calculation of frame-shift according to
-// Stéphane Letz. Callback adaptation techniques. [Technical Report] GRAME. 2001. hal-02158912
-pub fn calculate_frame_shift(host_buffer_len: usize, user_buffer_len: usize) -> usize {
-    let mut res = 0;
-    for i in (host_buffer_len..lcm(host_buffer_len, user_buffer_len)).step_by(host_buffer_len) {
-        res = res.max(i % user_buffer_len);
-    }
-    res
 }

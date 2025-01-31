@@ -10,6 +10,7 @@ use rtsan_standalone::nonblocking;
 #[derive(Default)]
 pub struct RingbufferLocal<F: Float> {
     ringbuffers: Vec<LocalRb<Heap<F>>>,
+    latency: usize,
 }
 
 impl<F: Float> RingbufferLocal<F> {
@@ -20,13 +21,9 @@ impl<F: Float> RingbufferLocal<F> {
             self.ringbuffers.push(LocalRb::new(frame_capacity));
         }
 
-        for rb in self.ringbuffers.iter_mut() {
-            for _ in 0..latency {
-                if rb.try_push(F::zero()).is_err() {
-                    panic!("Ringbuf should be large enough!");
-                }
-            }
-        }
+        self.latency = latency;
+
+        self.apply_latency();
     }
 
     #[nonblocking]
@@ -62,6 +59,7 @@ impl<F: Float> RingbufferLocal<F> {
         for rb in self.ringbuffers.iter_mut() {
             rb.clear();
         }
+        self.apply_latency();
     }
 
     pub fn num_frames_stored(&self) -> usize {
@@ -70,6 +68,16 @@ impl<F: Float> RingbufferLocal<F> {
 
     pub fn num_frames_free(&self) -> usize {
         self.ringbuffers[0].vacant_len()
+    }
+
+    fn apply_latency(&mut self) {
+        for rb in self.ringbuffers.iter_mut() {
+            for _ in 0..self.latency {
+                if rb.try_push(F::zero()).is_err() {
+                    panic!("Ringbuf should be large enough!");
+                }
+            }
+        }
     }
 }
 

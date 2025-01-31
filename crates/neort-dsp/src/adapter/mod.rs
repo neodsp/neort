@@ -1,7 +1,7 @@
 use neort_blocks::{BlockHeap, BlockViewMut};
 use neort_float::Float;
 use resamplers::Resamplers;
-use tools::{find_max_index, impulse_response};
+use tools::{calculate_frame_shift, find_max_index, impulse_response};
 
 use crate::ringbuffer::local::RingbufferLocal;
 
@@ -49,8 +49,22 @@ impl<F: Float> Adapter<F> {
 
         let max_frames = max_frames.max(system_max_num_frames).max(user_num_frames);
 
-        self.input_rb.prepare(num_channels, max_frames * 10, 0);
-        self.output_rb.prepare(num_channels, max_frames * 10, 0);
+        // figure out lowest possible latency if sample-rate match
+        let (latency_input, latency_output) = if self.resamplers.is_none() {
+            let latency = calculate_frame_shift(system_max_num_frames, user_num_frames);
+            if user_num_frames <= system_max_num_frames {
+                (0, latency)
+            } else {
+                (latency, 0)
+            }
+        } else {
+            (0, 0)
+        };
+
+        self.input_rb
+            .prepare(num_channels, max_frames * 10, latency_input);
+        self.output_rb
+            .prepare(num_channels, max_frames * 10, latency_output);
 
         let ir = impulse_response(
             10,

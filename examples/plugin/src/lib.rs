@@ -1,5 +1,5 @@
 use neort_blocks::BlockHeap;
-use neort_dsp::adapter::async_adapter::AsyncAdapter;
+use neort_dsp::adapter::{async_adapter::AsyncAdapter, Adapter};
 use nih_plug::prelude::*;
 use std::sync::Arc;
 
@@ -10,7 +10,7 @@ use std::sync::Arc;
 struct NeortExamplePlugin {
     params: Arc<NeortExamplePluginParams>,
     block: BlockHeap<f32>,
-    adapter: AsyncAdapter<f32>,
+    adapter: Adapter<f32>,
 }
 
 #[derive(Params)]
@@ -28,7 +28,7 @@ impl Default for NeortExamplePlugin {
         Self {
             params: Arc::new(NeortExamplePluginParams::default()),
             block: BlockHeap::default(),
-            adapter: AsyncAdapter::default(),
+            adapter: Adapter::default(),
         }
     }
 }
@@ -120,19 +120,27 @@ impl Plugin for NeortExamplePlugin {
 
         // let params = self.params.clone();
 
+        // self.adapter.prepare(
+        //     audio_io_layout.main_input_channels.unwrap().get() as usize,
+        //     buffer_config.sample_rate as usize,
+        //     buffer_config.max_buffer_size as usize,
+        //     16000,
+        //     64,
+        //     |mut block| {
+        //         for channel in 0..block.num_channels() {
+        //             for frame in 0..block.num_frames() {
+        //                 block[[channel, frame]] *= 0.5;
+        //             }
+        //         }
+        //     },
+        // );
+        //
         self.adapter.prepare(
             audio_io_layout.main_input_channels.unwrap().get() as usize,
             buffer_config.sample_rate as usize,
             buffer_config.max_buffer_size as usize,
-            16000,
-            64,
-            |mut block| {
-                for channel in 0..block.num_channels() {
-                    for frame in 0..block.num_frames() {
-                        block[[channel, frame]] *= 0.5;
-                    }
-                }
-            },
+            48000,
+            128,
         );
 
         true
@@ -154,7 +162,15 @@ impl Plugin for NeortExamplePlugin {
         self.block
             .copy_from_planar_data_limited(buffer.as_slice(), num_channels, num_frames);
 
-        self.adapter.process(self.block.view_mut());
+        // let params = self.params.clone();
+
+        self.adapter.process(self.block.view_mut(), |mut block| {
+            for channel in 0..block.num_channels() {
+                for frame in 0..block.num_frames() {
+                    block[[channel, frame]] *= 0.5;
+                }
+            }
+        });
 
         self.block
             .copy_into_planar_data_limited(buffer.as_slice(), num_channels, num_frames);

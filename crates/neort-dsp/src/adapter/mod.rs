@@ -37,6 +37,8 @@ impl<F: Float> Adapter<F> {
                 user_sample_rate,
                 user_num_frames,
             ));
+        } else {
+            self.resamplers = None;
         }
 
         self.process_block = BlockHeap::new(num_channels, user_num_frames);
@@ -60,7 +62,6 @@ impl<F: Float> Adapter<F> {
                 self.process(block, |_| {});
             },
         );
-        self.reset();
 
         // return delay
         find_max_index(&ir)

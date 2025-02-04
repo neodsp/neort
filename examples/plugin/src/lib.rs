@@ -1,7 +1,10 @@
 use neort_blocks::BlockHeap;
-use neort_dsp::adapter::Adapter;
+use neort_dsp::ringbuffer::shared::{create_shared_ringbuffer, RbConsumer, RbProducer};
 use nih_plug::prelude::*;
-use std::sync::Arc;
+use std::{
+    sync::Arc,
+    thread::{spawn, JoinHandle},
+};
 
 // This is a shortened version of the gain example with most comments removed, check out
 // https://github.com/robbert-vdh/nih-plug/blob/master/plugins/examples/gain/src/lib.rs to get
@@ -10,7 +13,10 @@ use std::sync::Arc;
 struct NeortExamplePlugin {
     params: Arc<NeortExamplePluginParams>,
     block: BlockHeap<f32>,
-    adapter: Adapter<f32>,
+    thread: Option<JoinHandle<()>>,
+    input_prod: RbProducer<f32>,
+    output_cons: RbConsumer<f32>,
+    // adapter: AsyncAdapter<f32>,
 }
 
 #[derive(Params)]
@@ -28,7 +34,10 @@ impl Default for NeortExamplePlugin {
         Self {
             params: Arc::new(NeortExamplePluginParams::default()),
             block: BlockHeap::default(),
-            adapter: Adapter::default(),
+            thread: None,
+            input_prod: RbProducer::default(),
+            output_cons: RbConsumer::default(),
+            // adapter: AsyncAdapter::default(),
         }
     }
 }
@@ -118,7 +127,29 @@ impl Plugin for NeortExamplePlugin {
             buffer_config.max_buffer_size as usize,
         );
 
-        // let params = self.params.clone();
+        let (input_prod, mut input_cons) = create_shared_ringbuffer::<f32>(2, 10_000, 0);
+
+        let (mut output_prod, output_cons) = create_shared_ringbuffer::<f32>(2, 10_000, 0);
+
+        self.input_prod = input_prod;
+        self.output_cons = output_cons;
+
+        let mut block = BlockHeap::new(2, 128);
+
+        let params = self.params.clone();
+
+        // let mut resampler =
+        //     Resamplers::<f32>::new(2, buffer_config.sample_rate as usize, 44100, 128);
+
+        self.thread = Some(spawn(move || loop {
+            while input_cons.num_frames_stored() > 128 {
+                assert!(input_cons.pop_block(block.view_mut()));
+                for channel in block.channels_mut() {
+                    channel.iter_mut().for_each(|s| *s *= params.gain.value());
+                }
+                assert!(output_prod.push_block(block.view()));
+            }
+        }));
 
         // self.adapter.prepare(
         //     audio_io_layout.main_input_channels.unwrap().get() as usize,
@@ -135,19 +166,27 @@ impl Plugin for NeortExamplePlugin {
         //     },
         // );
 
-        let latency = self.adapter.prepare(
-            audio_io_layout.main_input_channels.unwrap().get() as usize,
-            buffer_config.sample_rate as usize,
-            buffer_config.max_buffer_size as usize,
-            48000,
-            128,
-        );
-        nih_log!(
-            "SR: {}, BS: {}, RL: {}",
-            buffer_config.sample_rate,
-            buffer_config.max_buffer_size,
-            latency
-        );
+        // let latency = self.adapter.prepare(
+        //     audio_io_layout.main_input_channels.unwrap().get() as usize,
+        //     buffer_config.sample_rate as usize,
+        //     buffer_config.max_buffer_size as usize,
+        //     48000,
+        //     128,
+        //     |mut block| {
+        //         for channel in 0..block.num_channels() {
+        //             for frame in 0..block.num_frames() {
+        //                 block[[channel, frame]] *= 0.5;
+        //             }
+        //         }
+        //     },
+        // );
+
+        // nih_log!(
+        //     "SR: {}, BS: {}, RL: {}",
+        //     buffer_config.sample_rate,
+        //     buffer_config.max_buffer_size,
+        //     latency
+        // );
 
         true
     }
@@ -168,13 +207,12 @@ impl Plugin for NeortExamplePlugin {
         self.block
             .copy_from_planar_data_limited(buffer.as_slice(), num_channels, num_frames);
 
-        self.adapter.process(self.block.view_mut(), |mut block| {
-            for channel in 0..block.num_channels() {
-                for frame in 0..block.num_frames() {
-                    block[[channel, frame]] *= self.params.gain.value();
-                }
-            }
-        });
+        // self.adapter.process(self.block.view_mut());
+        assert!(self.input_prod.push_block(self.block.view()));
+
+        if self.output_cons.num_frames_stored() > buffer.samples() {
+            assert!(self.output_cons.pop_block(self.block.view_mut()));
+        }
 
         self.block
             .copy_into_planar_data_limited(buffer.as_slice(), num_channels, num_frames);

@@ -15,6 +15,9 @@ pub struct RbProducer<F: Float> {
     producers: Vec<Caching<Arc<SharedRb<Heap<F>>>, true, false>>,
 }
 
+unsafe impl<F: Float> Send for RbProducer<F> {}
+unsafe impl<F: Float> Sync for RbProducer<F> {}
+
 impl<F: Float> RbProducer<F> {
     #[nonblocking]
     pub fn push_block(&mut self, block: BlockView<F>) -> bool {
@@ -42,6 +45,9 @@ impl<F: Float> RbProducer<F> {
 pub struct RbConsumer<F: Float> {
     consumers: Vec<Caching<Arc<SharedRb<Heap<F>>>, false, true>>,
 }
+
+unsafe impl<F: Float> Send for RbConsumer<F> {}
+unsafe impl<F: Float> Sync for RbConsumer<F> {}
 
 impl<F: Float> RbConsumer<F> {
     #[nonblocking]

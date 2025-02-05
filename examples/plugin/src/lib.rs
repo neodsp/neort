@@ -1,5 +1,9 @@
+use event_listener::{Event, EventListener, Listener};
 use neort_blocks::BlockHeap;
-use neort_dsp::ringbuffer::shared::{create_shared_ringbuffer, RbConsumer, RbProducer};
+use neort_dsp::{
+    adapter::resamplers::Resamplers,
+    ringbuffer::shared::{create_shared_ringbuffer, RbConsumer, RbProducer},
+};
 use nih_plug::prelude::*;
 use std::{
     sync::Arc,
@@ -16,6 +20,7 @@ struct NeortExamplePlugin {
     thread: Option<JoinHandle<()>>,
     input_prod: RbProducer<f32>,
     output_cons: RbConsumer<f32>,
+    event: Arc<Event>,
     // adapter: AsyncAdapter<f32>,
 }
 
@@ -37,6 +42,7 @@ impl Default for NeortExamplePlugin {
             thread: None,
             input_prod: RbProducer::default(),
             output_cons: RbConsumer::default(),
+            event: Arc::new(Event::new()),
             // adapter: AsyncAdapter::default(),
         }
     }
@@ -134,59 +140,36 @@ impl Plugin for NeortExamplePlugin {
         self.input_prod = input_prod;
         self.output_cons = output_cons;
 
-        let mut block = BlockHeap::new(2, 128);
+        let mut block = BlockHeap::<f32>::new(2, 128);
 
         let params = self.params.clone();
 
-        // let mut resampler =
-        //     Resamplers::<f32>::new(2, buffer_config.sample_rate as usize, 44100, 128);
+        let mut resamplers =
+            Resamplers::<f32>::new(2, buffer_config.sample_rate as usize, 44100, 128);
+
+        let event = self.event.clone();
 
         self.thread = Some(spawn(move || loop {
-            while input_cons.num_frames_stored() > 128 {
-                assert!(input_cons.pop_block(block.view_mut()));
+            // check if enough data is present, otherwise continue
+            while input_cons.num_frames_stored() >= resamplers.input_frames_next() {
+                // pull data from audio thread
+                assert!(input_cons.pop_block(resamplers.input_block()));
+                resamplers.process_input(block.view_mut());
+
+                // simulated user process
                 for channel in block.channels_mut() {
                     channel.iter_mut().for_each(|s| *s *= params.gain.value());
                 }
-                assert!(output_prod.push_block(block.view()));
+
+                resamplers.process_output(block.view());
+                // push data into audio thread
+                assert!(output_prod.push_block(resamplers.output_block()));
             }
+
+            // if not enough data is there to do the processing, wait for new data to arrive in audio thread
+            let listener = event.listen();
+            listener.wait();
         }));
-
-        // self.adapter.prepare(
-        //     audio_io_layout.main_input_channels.unwrap().get() as usize,
-        //     buffer_config.sample_rate as usize,
-        //     buffer_config.max_buffer_size as usize,
-        //     16000,
-        //     64,
-        //     |mut block| {
-        //         for channel in 0..block.num_channels() {
-        //             for frame in 0..block.num_frames() {
-        //                 block[[channel, frame]] *= 0.5;
-        //             }
-        //         }
-        //     },
-        // );
-
-        // let latency = self.adapter.prepare(
-        //     audio_io_layout.main_input_channels.unwrap().get() as usize,
-        //     buffer_config.sample_rate as usize,
-        //     buffer_config.max_buffer_size as usize,
-        //     48000,
-        //     128,
-        //     |mut block| {
-        //         for channel in 0..block.num_channels() {
-        //             for frame in 0..block.num_frames() {
-        //                 block[[channel, frame]] *= 0.5;
-        //             }
-        //         }
-        //     },
-        // );
-
-        // nih_log!(
-        //     "SR: {}, BS: {}, RL: {}",
-        //     buffer_config.sample_rate,
-        //     buffer_config.max_buffer_size,
-        //     latency
-        // );
 
         true
     }
@@ -207,11 +190,23 @@ impl Plugin for NeortExamplePlugin {
         self.block
             .copy_from_planar_data_limited(buffer.as_slice(), num_channels, num_frames);
 
-        // self.adapter.process(self.block.view_mut());
+        // push data into ringbuffer for background thread
         assert!(self.input_prod.push_block(self.block.view()));
+        // notify background thread that new data is available
+        self.event.notify(usize::MAX);
 
-        if self.output_cons.num_frames_stored() > buffer.samples() {
-            assert!(self.output_cons.pop_block(self.block.view_mut()));
+        if self.output_cons.num_frames_stored() >= buffer.samples() {
+            // this loop ensures we reduce latency by jumping to the newest possible buffer
+            // in an unstable system this might lead to problems, but latency might just increase more and more otherwise
+            // test this by using a background processing task that is using way to much time and see what is better -> processing the first, or jumping to the latest
+            while self.output_cons.num_frames_stored() >= buffer.samples() {
+                // pull data from background thread
+                assert!(self.output_cons.pop_block(self.block.view_mut()));
+            }
+        } else {
+            // clearing to make it noticable that there were no samples
+            // here something more elegant could be done in the future
+            self.block.clear();
         }
 
         self.block

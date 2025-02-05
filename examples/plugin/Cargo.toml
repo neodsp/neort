@@ -21,6 +21,7 @@ nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", features = [
 # nih_plug = { git = "https://github.com/robbert-vdh/nih-plug.git", default-features = false, features = ["assert_process_allocs"] }
 neort-blocks = { workspace = true }
 neort-dsp = { workspace = true }
+event-listener = "5.4.0"
 
 # [profile.release]
 # lto = "thin"

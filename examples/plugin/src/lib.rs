@@ -1,4 +1,4 @@
-use event_listener::{Event, EventListener, Listener};
+use event_listener::{Event, Listener};
 use neort_blocks::BlockHeap;
 use neort_dsp::{
     adapter::resamplers::Resamplers,
@@ -6,7 +6,7 @@ use neort_dsp::{
 };
 use nih_plug::prelude::*;
 use std::{
-    sync::Arc,
+    sync::{atomic::AtomicBool, Arc},
     thread::{spawn, JoinHandle},
 };
 
@@ -21,7 +21,7 @@ struct NeortExamplePlugin {
     input_prod: RbProducer<f32>,
     output_cons: RbConsumer<f32>,
     event: Arc<Event>,
-    // adapter: AsyncAdapter<f32>,
+    terminate_flag: Arc<AtomicBool>,
 }
 
 #[derive(Params)]
@@ -43,6 +43,7 @@ impl Default for NeortExamplePlugin {
             input_prod: RbProducer::default(),
             output_cons: RbConsumer::default(),
             event: Arc::new(Event::new()),
+            terminate_flag: Arc::new(AtomicBool::new(false)),
             // adapter: AsyncAdapter::default(),
         }
     }
@@ -75,6 +76,15 @@ impl Default for NeortExamplePluginParams {
             .with_value_to_string(formatters::v2s_f32_gain_to_db(2))
             .with_string_to_value(formatters::s2v_f32_gain_to_db()),
         }
+    }
+}
+
+impl Drop for NeortExamplePlugin {
+    fn drop(&mut self) {
+        self.terminate_flag
+            .store(true, std::sync::atomic::Ordering::SeqCst);
+        // make background thread continue if it is in the state
+        self.event.notify(usize::MAX);
     }
 }
 
@@ -133,9 +143,9 @@ impl Plugin for NeortExamplePlugin {
             buffer_config.max_buffer_size as usize,
         );
 
-        let (input_prod, mut input_cons) = create_shared_ringbuffer::<f32>(2, 10_000, 0);
+        let (input_prod, mut input_cons) = create_shared_ringbuffer::<f32>(2, 10_000, 1000);
 
-        let (mut output_prod, output_cons) = create_shared_ringbuffer::<f32>(2, 10_000, 0);
+        let (mut output_prod, output_cons) = create_shared_ringbuffer::<f32>(2, 10_000, 1000);
 
         self.input_prod = input_prod;
         self.output_cons = output_cons;
@@ -148,6 +158,7 @@ impl Plugin for NeortExamplePlugin {
             Resamplers::<f32>::new(2, buffer_config.sample_rate as usize, 44100, 128);
 
         let event = self.event.clone();
+        let terminate_flag = self.terminate_flag.clone();
 
         self.thread = Some(spawn(move || loop {
             // check if enough data is present, otherwise continue
@@ -169,6 +180,12 @@ impl Plugin for NeortExamplePlugin {
             // if not enough data is there to do the processing, wait for new data to arrive in audio thread
             let listener = event.listen();
             listener.wait();
+
+            // make this thrad end, if the program is shutting down
+            // make sure that the listener gets notified after setting the terminate flag to true!
+            if terminate_flag.load(std::sync::atomic::Ordering::SeqCst) {
+                break;
+            }
         }));
 
         true
@@ -196,16 +213,11 @@ impl Plugin for NeortExamplePlugin {
         self.event.notify(usize::MAX);
 
         if self.output_cons.num_frames_stored() >= buffer.samples() {
-            // this loop ensures we reduce latency by jumping to the newest possible buffer
-            // in an unstable system this might lead to problems, but latency might just increase more and more otherwise
-            // test this by using a background processing task that is using way to much time and see what is better -> processing the first, or jumping to the latest
-            while self.output_cons.num_frames_stored() >= buffer.samples() {
-                // pull data from background thread
-                assert!(self.output_cons.pop_block(self.block.view_mut()));
-            }
+            assert!(self.output_cons.pop_block(self.block.view_mut()));
         } else {
             // clearing to make it noticable that there were no samples
             // here something more elegant could be done in the future
+            nih_log!("MISSED PACKAGE!");
             self.block.clear();
         }
 

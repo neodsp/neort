@@ -1,5 +1,5 @@
 use neort_blocks::BlockHeap;
-use neort_dsp::adapter::async_adapter::AsyncAdapter;
+use neort_dsp::adapter::Adapter;
 use nih_plug::prelude::*;
 use std::sync::Arc;
 
@@ -153,7 +153,7 @@ impl Plugin for NeortExamplePlugin {
         let num_frames = buffer.samples();
         self.block
             .copy_from_planar_data_limited(buffer.as_slice(), num_channels, num_frames);
-
+      
         self.async_adapter.process(self.block.view_mut());
 
         self.block

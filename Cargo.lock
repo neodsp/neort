@@ -714,6 +714,7 @@ dependencies = [
 name = "neort-dsp"
 version = "0.0.0"
 dependencies = [
+ "event-listener",
  "neort-blocks",
  "neort-float",
  "num-integer",

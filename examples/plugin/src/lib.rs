@@ -1,14 +1,7 @@
-use event_listener::{Event, Listener};
 use neort_blocks::BlockHeap;
-use neort_dsp::{
-    adapter::resamplers::Resamplers,
-    ringbuffer::shared::{create_shared_ringbuffer, RbConsumer, RbProducer},
-};
+use neort_dsp::adapter::async_adapter::AsyncAdapter;
 use nih_plug::prelude::*;
-use std::{
-    sync::{atomic::AtomicBool, Arc},
-    thread::{spawn, JoinHandle},
-};
+use std::sync::Arc;
 
 // This is a shortened version of the gain example with most comments removed, check out
 // https://github.com/robbert-vdh/nih-plug/blob/master/plugins/examples/gain/src/lib.rs to get
@@ -17,11 +10,7 @@ use std::{
 struct NeortExamplePlugin {
     params: Arc<NeortExamplePluginParams>,
     block: BlockHeap<f32>,
-    thread: Option<JoinHandle<()>>,
-    input_prod: RbProducer<f32>,
-    output_cons: RbConsumer<f32>,
-    event: Arc<Event>,
-    terminate_flag: Arc<AtomicBool>,
+    async_adapter: AsyncAdapter<f32>,
 }
 
 #[derive(Params)]
@@ -39,12 +28,7 @@ impl Default for NeortExamplePlugin {
         Self {
             params: Arc::new(NeortExamplePluginParams::default()),
             block: BlockHeap::default(),
-            thread: None,
-            input_prod: RbProducer::default(),
-            output_cons: RbConsumer::default(),
-            event: Arc::new(Event::new()),
-            terminate_flag: Arc::new(AtomicBool::new(false)),
-            // adapter: AsyncAdapter::default(),
+            async_adapter: AsyncAdapter::default(),
         }
     }
 }
@@ -76,15 +60,6 @@ impl Default for NeortExamplePluginParams {
             .with_value_to_string(formatters::v2s_f32_gain_to_db(2))
             .with_string_to_value(formatters::s2v_f32_gain_to_db()),
         }
-    }
-}
-
-impl Drop for NeortExamplePlugin {
-    fn drop(&mut self) {
-        self.terminate_flag
-            .store(true, std::sync::atomic::Ordering::SeqCst);
-        // make background thread continue if it is in the state
-        self.event.notify(usize::MAX);
     }
 }
 
@@ -135,6 +110,7 @@ impl Plugin for NeortExamplePlugin {
         buffer_config: &BufferConfig,
         _context: &mut impl InitContext<Self>,
     ) -> bool {
+        nih_log!("PREPARE");
         // Resize buffers and perform other potentially expensive initialization operations here.
         // The `reset()` function is always called right after this function. You can remove this
         // function if you do not need it.
@@ -143,50 +119,21 @@ impl Plugin for NeortExamplePlugin {
             buffer_config.max_buffer_size as usize,
         );
 
-        let (input_prod, mut input_cons) = create_shared_ringbuffer::<f32>(2, 10_000, 1000);
-
-        let (mut output_prod, output_cons) = create_shared_ringbuffer::<f32>(2, 10_000, 1000);
-
-        self.input_prod = input_prod;
-        self.output_cons = output_cons;
-
-        let mut block = BlockHeap::<f32>::new(2, 128);
-
         let params = self.params.clone();
 
-        let mut resamplers =
-            Resamplers::<f32>::new(2, buffer_config.sample_rate as usize, 44100, 128);
-
-        let event = self.event.clone();
-        let terminate_flag = self.terminate_flag.clone();
-
-        self.thread = Some(spawn(move || loop {
-            // check if enough data is present, otherwise continue
-            while input_cons.num_frames_stored() >= resamplers.input_frames_next() {
-                // pull data from audio thread
-                assert!(input_cons.pop_block(resamplers.input_block()));
-                resamplers.process_input(block.view_mut());
-
-                // simulated user process
+        self.async_adapter.prepare(
+            2,
+            buffer_config.sample_rate as usize,
+            buffer_config.max_buffer_size as usize,
+            44100,
+            128,
+            move |mut block| {
+                let gain = params.gain.value();
                 for channel in block.channels_mut() {
-                    channel.iter_mut().for_each(|s| *s *= params.gain.value());
+                    channel.iter_mut().for_each(|f| *f *= gain);
                 }
-
-                resamplers.process_output(block.view());
-                // push data into audio thread
-                assert!(output_prod.push_block(resamplers.output_block()));
-            }
-
-            // if not enough data is there to do the processing, wait for new data to arrive in audio thread
-            let listener = event.listen();
-            listener.wait();
-
-            // make this thrad end, if the program is shutting down
-            // make sure that the listener gets notified after setting the terminate flag to true!
-            if terminate_flag.load(std::sync::atomic::Ordering::SeqCst) {
-                break;
-            }
-        }));
+            },
+        );
 
         true
     }
@@ -207,19 +154,7 @@ impl Plugin for NeortExamplePlugin {
         self.block
             .copy_from_planar_data_limited(buffer.as_slice(), num_channels, num_frames);
 
-        // push data into ringbuffer for background thread
-        assert!(self.input_prod.push_block(self.block.view()));
-        // notify background thread that new data is available
-        self.event.notify(usize::MAX);
-
-        if self.output_cons.num_frames_stored() >= buffer.samples() {
-            assert!(self.output_cons.pop_block(self.block.view_mut()));
-        } else {
-            // clearing to make it noticable that there were no samples
-            // here something more elegant could be done in the future
-            nih_log!("MISSED PACKAGE!");
-            self.block.clear();
-        }
+        self.async_adapter.process(self.block.view_mut());
 
         self.block
             .copy_into_planar_data_limited(buffer.as_slice(), num_channels, num_frames);

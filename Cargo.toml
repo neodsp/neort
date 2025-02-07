@@ -30,6 +30,7 @@ neort-io = { path = "crates/neort-io" }
 approx = "0.5.1"
 criterion = "0.5.1"
 cxx-juce = "0.8.0"
+event-listener = "5.4"
 num-complex = { version = "0.4", default-features = false }
 num-integer = { version = "0.1", default-features = false }
 num-traits = { version = "0.2.19", default-features = false }

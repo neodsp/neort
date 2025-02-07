@@ -10,7 +10,7 @@ use std::sync::Arc;
 struct NeortExamplePlugin {
     params: Arc<NeortExamplePluginParams>,
     block: BlockHeap<f32>,
-    adapter: Adapter<f32>,
+    async_adapter: AsyncAdapter<f32>,
 }
 
 #[derive(Params)]
@@ -28,7 +28,7 @@ impl Default for NeortExamplePlugin {
         Self {
             params: Arc::new(NeortExamplePluginParams::default()),
             block: BlockHeap::default(),
-            adapter: Adapter::default(),
+            async_adapter: AsyncAdapter::default(),
         }
     }
 }
@@ -110,6 +110,7 @@ impl Plugin for NeortExamplePlugin {
         buffer_config: &BufferConfig,
         _context: &mut impl InitContext<Self>,
     ) -> bool {
+        nih_log!("PREPARE");
         // Resize buffers and perform other potentially expensive initialization operations here.
         // The `reset()` function is always called right after this function. You can remove this
         // function if you do not need it.
@@ -118,35 +119,20 @@ impl Plugin for NeortExamplePlugin {
             buffer_config.max_buffer_size as usize,
         );
 
-        // let params = self.params.clone();
+        let params = self.params.clone();
 
-        // self.adapter.prepare(
-        //     audio_io_layout.main_input_channels.unwrap().get() as usize,
-        //     buffer_config.sample_rate as usize,
-        //     buffer_config.max_buffer_size as usize,
-        //     16000,
-        //     64,
-        //     |mut block| {
-        //         for channel in 0..block.num_channels() {
-        //             for frame in 0..block.num_frames() {
-        //                 block[[channel, frame]] *= 0.5;
-        //             }
-        //         }
-        //     },
-        // );
-
-        let latency = self.adapter.prepare(
-            audio_io_layout.main_input_channels.unwrap().get() as usize,
+        self.async_adapter.prepare(
+            2,
             buffer_config.sample_rate as usize,
             buffer_config.max_buffer_size as usize,
-            48000,
+            44100,
             128,
-        );
-        nih_log!(
-            "SR: {}, BS: {}, RL: {}",
-            buffer_config.sample_rate,
-            buffer_config.max_buffer_size,
-            latency
+            move |mut block| {
+                let gain = params.gain.value();
+                for channel in block.channels_mut() {
+                    channel.iter_mut().for_each(|f| *f *= gain);
+                }
+            },
         );
 
         true
@@ -167,14 +153,8 @@ impl Plugin for NeortExamplePlugin {
         let num_frames = buffer.samples();
         self.block
             .copy_from_planar_data_limited(buffer.as_slice(), num_channels, num_frames);
-
-        self.adapter.process(self.block.view_mut(), |mut block| {
-            for channel in 0..block.num_channels() {
-                for frame in 0..block.num_frames() {
-                    block[[channel, frame]] *= self.params.gain.value();
-                }
-            }
-        });
+      
+        self.async_adapter.process(self.block.view_mut());
 
         self.block
             .copy_into_planar_data_limited(buffer.as_slice(), num_channels, num_frames);

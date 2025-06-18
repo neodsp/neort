@@ -3,8 +3,8 @@ use std::sync::Arc;
 use std::thread::JoinHandle;
 
 use super::resamplers::Resamplers;
+use audio_blocks::{AudioBlock, AudioBlockMut, Ops, Stacked};
 use event_listener::{Event, Listener};
-use neort_blocks::{BlockHeap, BlockViewMut};
 use neort_float::Float;
 use rtsan_standalone::nonblocking;
 
@@ -22,33 +22,33 @@ pub struct AsyncAdapter<F: Float> {
 impl<F: Float> AsyncAdapter<F> {
     pub fn prepare(
         &mut self,
-        num_channels: usize,
+        num_channels: u16,
         system_sample_rate: usize,
         system_max_num_frames: usize,
         user_sample_rate: usize,
         user_num_frames: usize,
-        mut process_fn: impl FnMut(BlockViewMut<F>) + Send + 'static,
+        mut process_fn: impl FnMut(&mut Stacked<F>) + Send + 'static,
     ) {
         let mut resamplers = None;
 
         if system_sample_rate != user_sample_rate {
             resamplers = Some(Resamplers::<F>::new(
-                num_channels,
+                num_channels as usize,
                 system_sample_rate,
                 user_sample_rate,
                 user_num_frames,
             ));
         }
 
-        let mut process_block = BlockHeap::<F>::new(num_channels, user_num_frames);
+        let mut process_block = Stacked::<F>::new(num_channels, user_num_frames);
 
         let max_frames = resamplers.as_ref().map(|r| r.frames_max()).unwrap_or(0);
         let max_frames = max_frames.max(system_max_num_frames).max(user_num_frames);
 
         let (input_prod, mut input_cons) =
-            create_shared_ringbuffer(num_channels, max_frames * 20, 0);
+            create_shared_ringbuffer(num_channels as usize, max_frames * 20, 0);
         let (mut output_prod, output_cons) =
-            create_shared_ringbuffer(num_channels, max_frames * 20, 0);
+            create_shared_ringbuffer(num_channels as usize, max_frames * 20, 0);
         self.input_prod = input_prod;
         self.output_cons = output_cons;
 
@@ -67,7 +67,7 @@ impl<F: Float> AsyncAdapter<F> {
                     assert!(input_cons.pop_block(resamplers.input_block()));
                     resamplers.process_input(process_block.view_mut());
 
-                    process_fn(process_block.view_mut());
+                    process_fn(&mut process_block);
 
                     resamplers.process_output(process_block.view());
                     assert!(output_prod.push_block(resamplers.output_block()));
@@ -80,7 +80,7 @@ impl<F: Float> AsyncAdapter<F> {
                     }
                     assert!(input_cons.pop_block(process_block.view_mut()));
 
-                    process_fn(process_block.view_mut());
+                    process_fn(&mut process_block);
 
                     assert!(output_prod.push_block(process_block.view()));
                 }
@@ -99,7 +99,7 @@ impl<F: Float> AsyncAdapter<F> {
     }
 
     #[nonblocking]
-    pub fn process(&mut self, mut block: BlockViewMut<F>) {
+    pub fn process(&mut self, mut block: impl AudioBlockMut<F>) {
         self.input_prod.push_block(block.view());
         // notify background thread that new data is available
         self.event.notify(usize::MAX);
@@ -161,7 +161,7 @@ mod tests {
                 },
             );
 
-            let mut block = BlockHeap::new(num_channels, system_num_frames);
+            let mut block = Stacked::new(num_channels, system_num_frames);
             for _ in 0..1000 {
                 adapter.process(block.view_mut());
                 std::thread::sleep(std::time::Duration::from_millis(5));

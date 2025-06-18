@@ -11,10 +11,9 @@ repository.workspace = true
 version.workspace = true
 
 [dependencies]
-neort-blocks = { workspace = true }
-
 serde = { workspace = true }
 thiserror = { workspace = true }
+
 cxx-juce = { workspace = true, optional = true }
 
 [features]

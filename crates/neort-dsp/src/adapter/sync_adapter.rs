@@ -1,43 +1,54 @@
 use super::resamplers::Resamplers;
 use super::tools::{find_max_index, impulse_response};
-use neort_blocks::{BlockHeap, BlockViewMut};
+use audio_blocks::Stacked;
 use neort_float::Float;
 
 use crate::ringbuffer::local::RingbufferLocal;
 
-#[derive(Default)]
 pub struct SyncAdapter<F: Float> {
     input_rb: RingbufferLocal<F>,
     output_rb: RingbufferLocal<F>,
     resamplers: Option<Resamplers<F>>,
-    process_block: BlockHeap<F>,
+    process_block: Stacked<F>,
     user_num_frames: usize,
+}
+
+impl<F: Float> Default for SyncAdapter<F> {
+    fn default() -> Self {
+        Self {
+            input_rb: Default::default(),
+            output_rb: Default::default(),
+            resamplers: None,
+            process_block: Stacked::new(0, 0),
+            user_num_frames: 0,
+        }
+    }
 }
 
 impl<F: Float> SyncAdapter<F> {
     /// Returns the delay the adaptor is expected to have
     pub fn prepare(
         &mut self,
-        num_channels: usize,
-        system_sample_rate: usize,
+        num_channels: u16,
+        system_sample_rate: u32,
         system_max_num_frames: usize,
-        user_sample_rate: usize,
+        user_sample_rate: u32,
         user_num_frames: usize,
     ) -> usize {
         self.user_num_frames = user_num_frames;
 
         if system_sample_rate != user_sample_rate {
             self.resamplers = Some(Resamplers::new(
-                num_channels,
-                system_sample_rate,
-                user_sample_rate,
+                num_channels as usize,
+                system_sample_rate as usize,
+                user_sample_rate as usize,
                 user_num_frames,
             ));
         } else {
             self.resamplers = None;
         }
 
-        self.process_block = BlockHeap::new(num_channels, user_num_frames);
+        self.process_block = Stacked::new(num_channels, user_num_frames);
 
         let max_frames = self
             .resamplers
@@ -50,17 +61,18 @@ impl<F: Float> SyncAdapter<F> {
         self.input_rb.prepare(num_channels, max_frames * 10, 0);
         self.output_rb.prepare(num_channels, max_frames * 10, 0);
 
-        let ir = impulse_response(
-            10,
-            system_max_num_frames,
-            num_channels,
-            |block: BlockViewMut<F>| {
-                self.process(block, |_| {});
-            },
-        );
+        // let ir = impulse_response(
+        //     10,
+        //     system_max_num_frames,
+        //     num_channels as usize,
+        //     |block: BlockViewMut<F>| {
+        //         self.process(block, |_| {});
+        //     },
+        // );
 
         // return delay
-        find_max_index(&ir)
+        // find_max_index(&ir)
+        0
     }
 
     pub fn process(

@@ -11,9 +11,9 @@ repository.workspace = true
 version.workspace = true
 
 [dependencies]
-neort-blocks = { workspace = true }
 neort-float = { workspace = true }
 
+audio-blocks = { workspace = true }
 event-listener = { workspace = true }
 num-integer = { workspace = true, features = ["std"] }
 realfft = { workspace = true }

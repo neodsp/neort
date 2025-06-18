@@ -92,6 +92,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "audio-blocks"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "120000bae0f6317a917edabc3017c1f914d33103a79ca93d389ae8d8a653c7c9"
+dependencies = [
+ "num",
+ "rtsan-standalone 0.2.0",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -696,31 +706,21 @@ dependencies = [
 name = "neort"
 version = "0.0.0"
 dependencies = [
- "neort-blocks",
  "neort-dsp",
  "neort-io",
-]
-
-[[package]]
-name = "neort-blocks"
-version = "0.0.0"
-dependencies = [
- "criterion",
- "num-traits",
- "rtsan-standalone",
 ]
 
 [[package]]
 name = "neort-dsp"
 version = "0.0.0"
 dependencies = [
+ "audio-blocks",
  "event-listener",
- "neort-blocks",
  "neort-float",
  "num-integer",
  "realfft",
  "ringbuf",
- "rtsan-standalone",
+ "rtsan-standalone 0.1.1",
  "rubato",
 ]
 
@@ -738,7 +738,6 @@ name = "neort-io"
 version = "0.0.0"
 dependencies = [
  "cxx-juce",
- "neort-blocks",
  "serde",
  "thiserror 2.0.11",
 ]
@@ -812,6 +811,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "num"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "35bd024e8b2ff75562e5f34e7f4905839deb4b22955ef5e73d2fea1b9813cb23"
+dependencies = [
+ "num-complex",
+ "num-integer",
+ "num-iter",
+ "num-rational",
+ "num-traits",
+]
+
+[[package]]
 name = "num-complex"
 version = "0.4.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -832,6 +844,27 @@ version = "0.1.46"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7969661fd2958a5cb096e56c8e1ad0444ac2bbcd0061bd28660485a44879858f"
 dependencies = [
+ "num-traits",
+]
+
+[[package]]
+name = "num-iter"
+version = "0.1.45"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1429034a0490724d0075ebb2bc9e875d6503c3cf69e235a8941aa757d83ef5bf"
+dependencies = [
+ "autocfg",
+ "num-integer",
+ "num-traits",
+]
+
+[[package]]
+name = "num-rational"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f83d14da390562dca69fc84082e73e548e1ad308d24accdedd2720017cb37824"
+dependencies = [
+ "num-integer",
  "num-traits",
 ]
 
@@ -968,7 +1001,6 @@ name = "plugin"
 version = "0.1.0"
 dependencies = [
  "event-listener",
- "neort-blocks",
  "neort-dsp",
  "nih_plug",
 ]
@@ -1110,8 +1142,18 @@ version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e15d5bd1ad7fd0c81650ac3629dffb1796dabaf54c2518ad53964b95ba01c4bb"
 dependencies = [
- "rtsan-standalone-macros",
- "rtsan-standalone-sys",
+ "rtsan-standalone-macros 0.1.1",
+ "rtsan-standalone-sys 0.1.0",
+]
+
+[[package]]
+name = "rtsan-standalone"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3c6a4b90a2bb001ee7995beb43c38b9ed112660936ae2183d462ee5e794a1b59"
+dependencies = [
+ "rtsan-standalone-macros 0.2.0",
+ "rtsan-standalone-sys 0.2.0",
 ]
 
 [[package]]
@@ -1125,10 +1167,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "rtsan-standalone-macros"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "849bff7a4ddb988fd4daa20f818e7cd699195ac81c9a6f2372444e04ba88e71e"
+dependencies = [
+ "quote",
+ "syn 2.0.96",
+]
+
+[[package]]
 name = "rtsan-standalone-sys"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b7546df1e63946b4db8bdc999c24bbd14d2ae4e80487b52fab6a1eaeed1039c8"
+dependencies = [
+ "num_cpus",
+ "tempfile",
+]
+
+[[package]]
+name = "rtsan-standalone-sys"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b463f269f93c0e4be0e325b3a3fe46b3948992d36b37c8a5d949e9b903d9294"
 dependencies = [
  "num_cpus",
  "tempfile",

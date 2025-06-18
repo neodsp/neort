@@ -1,6 +1,5 @@
 [workspace]
 members = [
-    "crates/neort-blocks",
     "crates/neort-dsp",
     "crates/neort-float",
     "crates/neort-io",
@@ -22,12 +21,12 @@ version = "0.0.0"
 
 [workspace.dependencies]
 neort = { path = "." }
-neort-blocks = { path = "crates/neort-blocks" }
 neort-dsp = { path = "crates/neort-dsp" }
 neort-float = { path = "crates/neort-float" }
 neort-io = { path = "crates/neort-io" }
 
 approx = "0.5.1"
+audio-blocks = "0.2.0"
 criterion = "0.5.1"
 cxx-juce = "0.8.0"
 event-listener = "5.4"
@@ -53,6 +52,5 @@ repository.workspace = true
 version.workspace = true
 
 [dependencies]
-neort-blocks = { workspace = true }
 neort-dsp = { workspace = true }
 neort-io = { workspace = true }

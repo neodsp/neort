@@ -1,6 +1,5 @@
 // The resamplers are copied from rubato by Henrik Enquist and adapted to take Blocks
 
-use neort_blocks::{BlockHeap, BlockView, BlockViewMut};
 use neort_float::Float;
 use rtsan_standalone::nonblocking;
 

@@ -1,37 +1,47 @@
-use neort_blocks::{BlockHeap, BlockViewMut};
+use audio_blocks::{AudioBlock, AudioBlockMut, Ops, Stacked};
 use neort_float::Float;
 
-pub fn find_max_index<F: Float>(data: &[F]) -> usize {
-    let index_of_max: Option<usize> = data
-        .iter()
-        .enumerate()
-        .map(|(index, value)| (index, value.abs()))
-        .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-        .map(|(index, _)| index);
-    index_of_max.unwrap()
+pub fn find_max_index_per_channel<F: Float>(audio: impl AudioBlock<F>) -> Vec<usize> {
+    let mut maxima = Vec::with_capacity(audio.num_channels() as usize);
+    for channel in audio.channels() {
+        let index_of_max: Option<usize> = channel
+            .enumerate()
+            .map(|(index, value)| (index, value.abs()))
+            .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+            .map(|(index, _)| index);
+        maxima.push(index_of_max.unwrap_or(0));
+    }
+    maxima
 }
 
 pub fn impulse_response<F: Float>(
     num_iterations: usize,
+    num_channels: u16,
     num_frames: usize,
-    num_channels: usize,
-    mut process_fn: impl FnMut(BlockViewMut<F>),
-) -> Vec<F> {
-    let mut impulse = BlockHeap::<F>::new(num_channels, num_frames);
-    impulse.channel_mut(0)[0] = F::one();
+    mut process_fn: impl FnMut(&mut Stacked<F>),
+) -> Stacked<F> {
+    let mut impulse = Stacked::<F>::new(num_channels, num_frames);
+    for ch in 0..num_channels {
+        *impulse.sample_mut(ch, 0) = F::one();
+    }
 
-    let mut impulse_response = Vec::new();
-    process_fn(impulse.view_mut());
+    let mut impulse_response = Stacked::new(num_channels, num_frames * num_iterations);
+    process_fn(&mut impulse);
 
-    for sample in impulse.channel(0).iter() {
-        impulse_response.push(*sample);
+    for channel in 0..num_channels {
+        for frame in 0..num_frames {
+            *impulse_response.sample_mut(channel, frame) = impulse.sample(channel, frame);
+        }
     }
 
     for _ in 1..num_iterations {
         impulse.clear();
-        process_fn(impulse.view_mut());
-        for sample in impulse.channel(0).iter() {
-            impulse_response.push(*sample);
+        process_fn(&mut impulse);
+        for channel in 0..num_channels {
+            for frame in 0..num_frames {
+                *impulse_response.sample_mut(channel, num_iterations * num_frames + frame) =
+                    impulse.sample(channel, frame);
+            }
         }
     }
 

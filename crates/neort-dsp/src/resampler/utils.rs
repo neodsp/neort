@@ -1,6 +1,6 @@
 // The resamplers are copied from rubato by Henrik Enquist and adapted to take Blocks
 
-use neort_blocks::{BlockHeap, BlockView, BlockViewMut};
+use audio_blocks::{AudioBlock, AudioBlockMut, Stacked};
 use realfft::num_traits::Float;
 
 /// Different window functions that can be used to window the sinc function.
@@ -146,10 +146,10 @@ where
         + one)
 }
 
-pub(crate) fn validate_buffers<F: Float>(
-    input: BlockView<F>,
-    output: BlockViewMut<F>,
-    channels: usize,
+pub(crate) fn validate_buffers<F: Float + 'static>(
+    input: impl AudioBlock<F>,
+    output: impl AudioBlock<F>,
+    channels: u16,
     min_input_frames: usize,
     min_output_frames: usize,
 ) -> Result<(), &'static str> {
@@ -182,13 +182,13 @@ where
 }
 
 /// Helper function. Make a set of windowed sincs.
-pub fn make_sincs<T: Float>(
+pub fn make_sincs<T: Float + 'static>(
     npoints: usize,
-    factor: usize,
+    factor: u16,
     f_cutoff: f32,
     windowfunc: WindowFunction,
-) -> BlockHeap<T> {
-    let totpoints = npoints * factor;
+) -> Stacked<T> {
+    let totpoints = npoints * factor as usize;
     let mut y = Vec::with_capacity(totpoints);
     let window = make_window::<T>(totpoints, windowfunc);
     let mut sum = T::zero();
@@ -207,10 +207,10 @@ pub fn make_sincs<T: Float>(
     //     "Generate sincs, length: {}, oversampling: {}, normalized by: {:?}",
     //     npoints, factor, sum
     // );
-    let mut sincs = BlockHeap::new(factor, npoints);
+    let mut sincs = Stacked::new(factor, npoints);
     for p in 0..npoints {
         for n in 0..factor {
-            sincs[[factor - n - 1, p]] = y[factor * p + n] / sum;
+            *sincs.sample_mut(factor - n - 1, p) = y[factor as usize * p + n as usize] / sum;
         }
     }
     sincs

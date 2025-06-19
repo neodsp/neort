@@ -1,4 +1,4 @@
-use neort_blocks::{BlockHeap, BlockView, BlockViewMut};
+use audio_blocks::{AudioBlock, AudioBlockMut, Stacked};
 use neort_float::Float;
 
 pub mod base;
@@ -7,25 +7,25 @@ pub mod fixed_in_out;
 pub mod fixed_out;
 mod utils;
 
-pub trait Resampler<S: Float> {
+pub trait Resampler<F: Float> {
     #[allow(clippy::result_unit_err)]
     fn process(
         &mut self,
-        input: BlockView<S>,
-        output: BlockViewMut<S>,
+        input: impl AudioBlock<F>,
+        output: impl AudioBlockMut<F>,
     ) -> Result<(usize, usize), ()>;
     fn input_frames_max(&self) -> usize;
     fn input_frames_next(&self) -> usize;
-    fn num_channels(&self) -> usize;
+    fn num_channels(&self) -> u16;
     fn output_frames_max(&self) -> usize;
     fn output_frames_next(&self) -> usize;
     fn output_delay(&self) -> usize;
     fn reset(&mut self);
 
-    fn generate_input_block(&self) -> BlockHeap<S> {
-        BlockHeap::new(self.num_channels(), self.input_frames_max())
+    fn generate_input_block(&self) -> Stacked<F> {
+        Stacked::new(self.num_channels(), self.input_frames_max())
     }
-    fn generate_output_block(&self) -> BlockHeap<S> {
-        BlockHeap::new(self.num_channels(), self.output_frames_max())
+    fn generate_output_block(&self) -> Stacked<F> {
+        Stacked::new(self.num_channels(), self.output_frames_max())
     }
 }

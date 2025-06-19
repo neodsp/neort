@@ -1,8 +1,9 @@
 use super::resamplers::Resamplers;
-use super::tools::{find_max_index, impulse_response};
-use audio_blocks::Stacked;
+use super::tools::impulse_response;
+use audio_blocks::{AudioBlock, AudioBlockMut, Ops, Stacked};
 use neort_float::Float;
 
+use crate::adapter::tools::find_max_index_per_channel;
 use crate::ringbuffer::local::RingbufferLocal;
 
 pub struct SyncAdapter<F: Float> {
@@ -61,24 +62,23 @@ impl<F: Float> SyncAdapter<F> {
         self.input_rb.prepare(num_channels, max_frames * 10, 0);
         self.output_rb.prepare(num_channels, max_frames * 10, 0);
 
-        // let ir = impulse_response(
-        //     10,
-        //     system_max_num_frames,
-        //     num_channels as usize,
-        //     |block: BlockViewMut<F>| {
-        //         self.process(block, |_| {});
-        //     },
-        // );
+        let ir = impulse_response(
+            10,
+            num_channels,
+            system_max_num_frames,
+            |block: &mut Stacked<F>| {
+                self.process(block.view_mut(), |_| {});
+            },
+        );
 
         // return delay
-        // find_max_index(&ir)
-        0
+        find_max_index_per_channel(ir)[0]
     }
 
     pub fn process(
         &mut self,
-        mut block: BlockViewMut<F>,
-        mut process_fn: impl FnMut(BlockViewMut<F>),
+        mut block: impl AudioBlockMut<F>,
+        mut process_fn: impl FnMut(&mut Stacked<F>),
     ) {
         assert!(self.input_rb.push_block(block.view()));
 
@@ -88,7 +88,7 @@ impl<F: Float> SyncAdapter<F> {
                 assert!(self.input_rb.pop_block(resamplers.input_block()));
                 resamplers.process_input(self.process_block.view_mut());
 
-                process_fn(self.process_block.view_mut());
+                process_fn(&mut self.process_block);
 
                 resamplers.process_output(self.process_block.view());
                 assert!(self.output_rb.push_block(resamplers.output_block()));
@@ -98,7 +98,7 @@ impl<F: Float> SyncAdapter<F> {
             while self.input_rb.num_frames_stored() >= self.user_num_frames {
                 self.input_rb.pop_block(self.process_block.view_mut());
 
-                process_fn(self.process_block.view_mut());
+                process_fn(&mut self.process_block);
 
                 assert!(self.output_rb.push_block(self.process_block.view()));
             }
@@ -122,9 +122,6 @@ impl<F: Float> SyncAdapter<F> {
 
 #[cfg(test)]
 mod tests {
-
-    use neort_blocks::BlockHeap;
-
     use super::*;
 
     #[test]
@@ -135,7 +132,7 @@ mod tests {
 
         dbg!(delay);
 
-        let mut block = BlockHeap::<f32>::new(2, 512);
+        let mut block = Stacked::<f32>::new(2, 512);
 
         adapter.process(block.view_mut(), |block| {
             assert_eq!(block.num_frames(), 512);
